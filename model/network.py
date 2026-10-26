@@ -8,7 +8,7 @@ from torch.nn import ModuleList
 from torch.nn import ReLU
 import torch
 
-        
+
 class Block(Module):
     def __init__(self, in_channels, out_channels):
         super().__init__()
@@ -38,7 +38,7 @@ class SimpleConv(Module):
             [Block(dec_channels[i], dec_channels[i + 1])
              for i in range(len(dec_channels) - 1)])
         # TODO: prepare upconvolutions
-    
+
     def forward(self, x):
         # loop through the encoder blocks
         for block in self.enc_blocks:
@@ -57,4 +57,44 @@ class SimpleConv(Module):
         return x
 
 
-    
+class HourGlass(Module):
+    def __init__(self, enc_channels=(3, 16, 32, 64),
+                 dec_channels=(64, 32, 16, 1)):
+        super().__init__()
+
+        # store the encoder blocks and maxpooling layer
+        self.enc_blocks = ModuleList([
+            Block(enc_channels[i], enc_channels[i+1])
+            for i in range(len(enc_channels) - 1)])
+
+        # prepare pooling: halves the spatial size after each encoder block
+        self.pool = MaxPool2d(2)
+
+        # initialize decoder # channels, upsampler blocks, and decoder blocks
+        self.channels = dec_channels
+        self.dec_blocks = ModuleList([
+            Block(dec_channels[i], dec_channels[i + 1])
+            for i in range(len(dec_channels) - 1)])
+
+        # prepare upconvolutions: doubles the spatial size back up, one per
+        # decoder block, so total encoder pools == total decoder upconvs
+        self.upconvs = ModuleList([
+            ConvTranspose2d(dec_channels[i], dec_channels[i], 2, 2)
+            for i in range(len(dec_channels) - 1)])
+
+    def forward(self, x):
+        # loop through the encoder blocks
+        for block in self.enc_blocks:
+            # pass the inputs through the current encoder block, then
+            # apply maxpooling on the output to shrink the feature map
+            x = block(x)
+            x = self.pool(x)
+
+        # decoder: loop through the number of channels
+        for i in range(len(self.channels) - 1):
+            # upscale the features back up before the decoder block
+            x = self.upconvs[i](x)
+            x = self.dec_blocks[i](x)
+
+        # return the final decoder output
+        return x

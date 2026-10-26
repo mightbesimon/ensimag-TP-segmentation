@@ -3,8 +3,8 @@
 
 # import the necessary packages
 from model.dataset import SegmentationDataset
-# from model.network import UNet
-# from model.network import HourGlass
+from model.network import UNet
+from model.network import HourGlass
 from model.network import SimpleConv
 
 from model import config
@@ -28,7 +28,7 @@ if __name__ == '__main__':
 
     if(not(os.path.exists(config.BASE_OUTPUT))):
         os.mkdir(config.BASE_OUTPUT)
-        
+
     # load the image and mask filepaths in a sorted manner
     imagePaths = sorted(list(paths.list_images(config.IMAGES_PATH)))
     maskPaths = sorted(list(paths.list_images(config.MASKS_PATH)))
@@ -63,8 +63,8 @@ if __name__ == '__main__':
     testLoader = DataLoader(testDS, shuffle=False,batch_size=config.BATCH_SIZE, pin_memory=config.PIN_MEMORY,num_workers=os.cpu_count())
 
     # initialize the UNet or HourGlass model
-    model = SimpleConv((3,16),(16,1))
-    # model = HourGlass((3,16,32,64),(64,32,16,1))
+    # model = SimpleConv((3,16),(16,1))
+    model = HourGlass((3,16,32,64),(64,32,16,1))
     # model = UNet((3,16,32,64),(64,32,16,1))
     cnnet = model.to(config.DEVICE)
     print(model)
@@ -126,10 +126,10 @@ if __name__ == '__main__':
                 # calculate the average training and validation loss
                 avgTrainLoss = totalTrainLoss / trainSteps
                 avgTestLoss = totalTestLoss / testSteps
-        
+
         # update our training history
         H["train_loss"].append(avgTrainLoss.cpu().detach().numpy())
-        H["test_loss"].append(avgTestLoss.cpu().detach().numpy())           
+        H["test_loss"].append(avgTestLoss.cpu().detach().numpy())
 
     # display the total time needed to perform the training
     endTime = time.time()
