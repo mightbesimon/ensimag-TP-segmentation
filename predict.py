@@ -54,34 +54,34 @@ def make_predictions(model, imagePath):
                 image = cv2.imread(imagePath)
                 image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
                 image = image.astype("float32") / 255.0
-                
+
                 # resize the image and make a copy of it for visualization
                 image = cv2.resize(image, (128, 128))
                 orig = image.copy()
-                
+
                 # find the filename and generate the path to ground truth
                 # mask
                 filename = imagePath.split(os.path.sep)[-1]
                 groundTruthPath = os.path.join(config.MASKS_PATH,filename)
-                
+
                 # load the ground-truth segmentation mask in grayscale mode
                 # and resize it
                 gtMask = cv2.imread(groundTruthPath, 0)
                 gtMask = cv2.resize(gtMask, (config.INPUT_IMAGE_HEIGHT,config.INPUT_IMAGE_HEIGHT))
-                
+
                 # make the channel axis to be the leading one, add a batch
                 # dimension, create a PyTorch tensor, and flash it to the
                 # current device
                 image = np.transpose(image, (2, 0, 1))
                 image = np.expand_dims(image, 0)
                 image = torch.from_numpy(image).to(config.DEVICE)
-                
+
                 # make the prediction, pass the results through the sigmoid
                 # function, and convert the result to a NumPy array
                 predMask = model(image).squeeze()
                 predMask = torch.sigmoid(predMask)
                 predMask = predMask.cpu().numpy()
-                
+
                 # filter out the weak predictions and convert them to integers
                 predProb = predMask * 255
                 predMask = (predMask > config.THRESHOLD) * 255
@@ -93,16 +93,16 @@ def make_predictions(model, imagePath):
 
 if __name__ == '__main__':
         os.environ["QT_QPA_PLATFORM_PLUGIN_PATH"] = QLibraryInfo.location(QLibraryInfo.PluginsPath)
-                
+
         # load the image paths in our testing file and randomly select 10
         # image paths
         print("[INFO] loading up test image paths...")
         imagePaths = open(config.TEST_PATH).read().strip().split("\n")
         imagePaths = np.random.choice(imagePaths, size=10)
-        
+
         # load our model from disk and flash it to the current device
         print("[INFO] load up model...")
-        unet = torch.load(config.BEST_MODEL_PATH).to(config.DEVICE)
+        unet = torch.load(config.BEST_MODEL_PATH, weights_only=False).to(config.DEVICE)
 
         # iterate over the randomly selected test image paths
         for path in imagePaths:
