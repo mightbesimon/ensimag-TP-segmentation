@@ -57,44 +57,60 @@ class SimpleConv(Module):
         return x
 
 
+def make_blocks(channels, block_func=lambda i, ch: Block(ch[i], ch[i+1])):
+    return ModuleList([
+        block_func(i, channels)
+        for i in range(len(channels) - 1)
+    ])
+
+
 class HourGlass(Module):
-    def __init__(self, enc_channels=(3, 16, 32, 64),
-                 dec_channels=(64, 32, 16, 1)):
+    def __init__(self,
+            enc_channels=( 3, 16, 32, 64),
+            dec_channels=(64, 32, 16,  1)):
+
         super().__init__()
 
         # store the encoder blocks and maxpooling layer
-        self.enc_blocks = ModuleList([
-            Block(enc_channels[i], enc_channels[i+1])
-            for i in range(len(enc_channels) - 1)])
+        self.enc_blocks = make_blocks(enc_channels)
 
         # prepare pooling: halves the spatial size after each encoder block
         self.pool = MaxPool2d(2)
 
-        # initialize decoder # channels, upsampler blocks, and decoder blocks
+        # dec_channels' last entry is the number of output classes, produced
+        # by a standalone 1x1 conv after the last decoder block, not by the
+        # block itself; the block keeps halving channels like the others,
+        # so it ends at half of the previous (second-to-last) channel count
+        block_channels = dec_channels[:-1] + (dec_channels[-2] // 2,)
         self.channels = dec_channels
-        self.dec_blocks = ModuleList([
-            Block(dec_channels[i], dec_channels[i + 1])
-            for i in range(len(dec_channels) - 1)])
+        self.dec_blocks = make_blocks(block_channels)
 
         # prepare upconvolutions: doubles the spatial size back up, one per
         # decoder block, so total encoder pools == total decoder upconvs
-        self.upconvs = ModuleList([
-            ConvTranspose2d(dec_channels[i], dec_channels[i], 2, 2)
-            for i in range(len(dec_channels) - 1)])
+        self.upconvs = make_blocks(block_channels,
+            block_func=lambda i, ch: ConvTranspose2d(ch[i], ch[i], 2, 2))
+
+        # final 1x1 conv mapping decoder features to the segmentation mask
+        self.head = Conv2d(block_channels[-1], dec_channels[-1], 1)
 
     def forward(self, x):
         # loop through the encoder blocks
+        # pass the inputs through the current encoder block, then
+        # apply maxpooling on the output to shrink the feature map
         for block in self.enc_blocks:
-            # pass the inputs through the current encoder block, then
-            # apply maxpooling on the output to shrink the feature map
             x = block(x)
             x = self.pool(x)
 
-        # decoder: loop through the number of channels
-        for i in range(len(self.channels) - 1):
-            # upscale the features back up before the decoder block
-            x = self.upconvs[i](x)
-            x = self.dec_blocks[i](x)
+        # decoder: loop through the decoder blocks
+        # upscale the features back up before the decoder block
+        for upconv, dec_block in zip(self.upconvs, self.dec_blocks):
+            x = upconv(x)
+            x = dec_block(x)
 
-        # return the final decoder output
-        return x
+        # map decoder features to the segmentation mask
+        return self.head(x)
+
+
+class UNet(Module):
+
+    ...
