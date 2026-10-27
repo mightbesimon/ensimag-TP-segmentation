@@ -1,0 +1,15 @@
+{
+	"models": [
+		"simpleconv",
+		"hourglass",
+		"unet"
+	],
+	"epochs_per_checkpoint": 20,
+	"num_checkpoints": 1,
+	"batch_size": 256,
+	"lr": 0.001,
+	"num_eval_images": 10,
+	"seed": 22,
+	"output_root": "experiment_output",
+	"sweeps": []
+}

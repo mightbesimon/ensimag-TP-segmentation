@@ -14,12 +14,6 @@ from model import config
 from model.dataset import SegmentationDataset
 
 
-def set_seed(seed):
-	random.seed(seed)
-	np.random.seed(seed)
-	torch.manual_seed(seed)
-
-
 class DataManager:
 	def __init__(self, batch_size, seed, num_eval_images):
 		self.batch_size = batch_size
@@ -29,6 +23,12 @@ class DataManager:
 		self.train_loader = None
 		self.test_loader = None
 		self.eval_images = None
+
+	@staticmethod
+	def set_seed(seed):
+		random.seed(seed)
+		np.random.seed(seed)
+		torch.manual_seed(seed)
 
 	def build(self):
 		image_paths = sorted(list(paths.list_images(config.IMAGES_PATH)))

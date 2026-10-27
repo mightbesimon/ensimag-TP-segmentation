@@ -1,5 +1,6 @@
-# builds a full-detail report purely from what's on disk for a given run,
-# so a past run's report can be reprinted without re-running anything.
+# everything related to reporting: builds a full-detail report purely from
+# what's on disk for a given run, so a past run's report can be reprinted
+# without re-running anything.
 
 import csv
 import glob
@@ -12,16 +13,11 @@ import numpy as np
 METRIC_CSV_RE = re.compile(r'predict_metrics_ep(\d+)\.csv$')
 
 
-def _read_csv_rows(path):
-	with open(path) as f:
-		return list(csv.DictReader(f))
-
-
 class ModelReport:
 	def __init__(self, manifest_entry, history, checkpoint_metrics):
 		self.manifest_entry = manifest_entry
 		self.history = history
-		# checkpoint_metrics: list of (epoch, [{name, bce, dice, iou}, ...]) sorted by epoch
+		# checkpoint_metrics: list of (epoch, [{name, bce, dice, iou}, ...])
 		self.checkpoint_metrics = checkpoint_metrics
 
 	@property
@@ -46,15 +42,23 @@ class Report:
 		self.manifest = manifest
 		self.model_reports = model_reports
 
+	@staticmethod
+	def _read_csv_rows(path):
+		with open(path) as f:
+			rows = list(csv.DictReader(f))
+		for r in rows:
+			r['bce'], r['dice'], r['iou'] = float(r['bce']), float(r['dice']), float(r['iou'])
+		return rows
+
 	@classmethod
 	def latest_timestamp(cls, out_root):
+		if not os.path.isdir(out_root):
+			return None
 		candidates = [
 			d for d in os.listdir(out_root)
 			if os.path.isdir(os.path.join(out_root, d)) and os.path.exists(os.path.join(out_root, d, 'manifest.json'))
-		] if os.path.isdir(out_root) else []
-		if not candidates:
-			return None
-		return sorted(candidates)[-1]
+		]
+		return sorted(candidates)[-1] if candidates else None
 
 	@classmethod
 	def load(cls, out_root, timestamp='latest'):
@@ -76,14 +80,8 @@ class Report:
 
 			checkpoint_metrics = []
 			for path in sorted(glob.glob(os.path.join(model_dir, 'predict_metrics_ep*.csv'))):
-				m = METRIC_CSV_RE.search(path)
-				epoch = int(m.group(1))
-				rows = _read_csv_rows(path)
-				for r in rows:
-					r['bce'] = float(r['bce'])
-					r['dice'] = float(r['dice'])
-					r['iou'] = float(r['iou'])
-				checkpoint_metrics.append((epoch, rows))
+				epoch = int(METRIC_CSV_RE.search(path).group(1))
+				checkpoint_metrics.append((epoch, cls._read_csv_rows(path)))
 			checkpoint_metrics.sort(key=lambda t: t[0])
 
 			model_reports.append(ModelReport(entry, history, checkpoint_metrics))
@@ -91,10 +89,7 @@ class Report:
 		return cls(out_root, timestamp, manifest, model_reports)
 
 	def _lines(self):
-		lines = []
-		lines.append(f'experiment report - run {self.timestamp}')
-		lines.append(f'config: {json.dumps(self.manifest["config"])}')
-		lines.append('')
+		lines = [f'experiment report - run {self.timestamp}', f'config: {json.dumps(self.manifest["config"])}', '']
 
 		lines.append('=== per-model checkpoint progression ===')
 		for mr in self.model_reports:
@@ -117,8 +112,7 @@ class Report:
 			if not rows:
 				continue
 			final_rows.append({
-				'label': mr.label,
-				'epoch': epoch,
+				'label': mr.label, 'epoch': epoch,
 				'bce': float(np.mean([r['bce'] for r in rows])),
 				'dice': float(np.mean([r['dice'] for r in rows])),
 				'iou': float(np.mean([r['iou'] for r in rows])),
@@ -126,8 +120,7 @@ class Report:
 				'training_time_seconds': mr.history['training_time_seconds'],
 			})
 
-		header = f'{"model":<30} {"epoch":>6} {"params":>10} {"time(s)":>10} {"bce":>8} {"dice":>8} {"iou":>8}'
-		lines.append(header)
+		lines.append(f'{"model":<30} {"epoch":>6} {"params":>10} {"time(s)":>10} {"bce":>8} {"dice":>8} {"iou":>8}')
 		for r in final_rows:
 			lines.append(f'{r["label"]:<30} {r["epoch"]:>6} {r["params"]:>10} {r["training_time_seconds"]:>10.2f} {r["bce"]:>8.4f} {r["dice"]:>8.4f} {r["iou"]:>8.4f}')
 		lines.append('')
@@ -141,8 +134,7 @@ class Report:
 			lines.append(f'best final dice: {best_dice["label"]} ({best_dice["dice"]:.4f})')
 			lines.append(f'best final iou:  {best_iou["label"]} ({best_iou["iou"]:.4f})')
 
-			best_img = None
-			worst_img = None
+			best_img = worst_img = None
 			for mr in self.model_reports:
 				for epoch, rows in mr.checkpoint_metrics:
 					for r in rows:
@@ -162,8 +154,7 @@ class Report:
 			print(line)
 
 	def save(self):
-		run_dir = os.path.join(self.out_root, self.timestamp)
-		path = os.path.join(run_dir, 'report.txt')
+		path = os.path.join(self.out_root, self.timestamp, 'report.txt')
 		with open(path, 'w') as f:
 			f.write('\n'.join(self._lines()) + '\n')
 		return path
