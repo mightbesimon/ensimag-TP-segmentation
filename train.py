@@ -64,8 +64,8 @@ if __name__ == '__main__':
 
     # initialize the UNet or HourGlass model
     # model = SimpleConv((3,16),(16,1))
-    model = HourGlass((3,16,32,64),(64,32,16,1))
-    # model = UNet((3,16,32,64),(64,32,16,1))
+    # model = HourGlass((3,16,32,64),(64,32,16,1))
+    model = UNet((3,16,32,64),(64,32,16,1))
     cnnet = model.to(config.DEVICE)
     print(model)
 
@@ -134,8 +134,8 @@ if __name__ == '__main__':
     # display the total time needed to perform the training
     endTime = time.time()
     print("[INFO] total time taken to train the model: {:.2f}s".format(endTime - startTime))
-    print(f'[INFO] bottleneck shape (channels, H, W): {cnnet.bottleneck_shape[1:]} from ecoding layers {cnnet.enc_channels} and decoding layers {cnnet.dec_channels}'
-        if cnnet.hasattr('bottleneck_shape')
+    print(f'[INFO] bottleneck shape (channels, H, W): {cnnet.bottleneck_shape[1:]} from encoding layers {cnnet.enc_channels} and decoding layers {cnnet.channels}'
+        if hasattr(cnnet, 'bottleneck_shape')
         else '[INFO] model has no bottleneck shape attribute')
 
     # plot the training loss and accuracy

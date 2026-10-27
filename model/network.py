@@ -105,5 +105,51 @@ class HourGlass(Module):
 
 
 class UNet(Module):
+    def __init__(self,
+            enc_channels=( 3, 16, 32, 64),
+            dec_channels=(64, 32, 16,  1)):
 
-    ...
+        super().__init__()
+
+        self.enc_channels = enc_channels
+        self.channels = dec_channels
+        block_channels = dec_channels[:-1] + (dec_channels[-2] // 2,)
+
+        # each decoder block receives the upconv output concatenated with
+        # the matching encoder skip connection, so it sees twice as many
+        # channels coming in as HourGlass block equivalent would
+
+        self.pool = MaxPool2d(2)
+        self.enc_blocks = make_blocks(enc_channels)
+        self.dec_blocks = make_blocks(block_channels,
+            block_func=lambda i, ch: Block(ch[i] * 2, ch[i+1]))
+        self.upconvs = make_blocks(block_channels,
+            block_func=lambda i, ch: ConvTranspose2d(ch[i], ch[i], 2, 2))
+
+        # final 1x1 conv mapping decoder features to the segmentation mask
+        self.head = Conv2d(block_channels[-1], dec_channels[-1], 1)
+
+    def forward(self, x):
+        # pass the inputs through the current encoder block, keep the
+        # pre-pooling feature map as the skip connection for this level,
+        # then apply maxpooling on the output to shrink the feature map
+        skips = []
+        for block in self.enc_blocks:
+            x = block(x)
+            skips.append(x)
+            x = self.pool(x)
+
+        skips.reverse() # deepest skip comes first
+
+        # record the bottleneck size reached by this forward pass
+        self.bottleneck_shape = tuple(x.shape)
+
+        # upscale the features, concatenate the matching (deepest-first)
+        # skip connection on the channel axis, then run the decoder block
+        for upconv, dec_block, skip in zip(self.upconvs, self.dec_blocks, skips):
+            x = upconv(x)
+            x = torch.cat([x, skip], dim=1)
+            x = dec_block(x)
+
+        # map decoder features to the segmentation mask
+        return self.head(x)
