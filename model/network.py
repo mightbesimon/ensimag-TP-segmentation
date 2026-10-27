@@ -71,22 +71,14 @@ class HourGlass(Module):
 
         super().__init__()
 
-        # store the encoder blocks and maxpooling layer
-        self.enc_blocks = make_blocks(enc_channels)
-
-        # prepare pooling: halves the spatial size after each encoder block
-        self.pool = MaxPool2d(2)
-
-        # dec_channels' last entry is the number of output classes, produced
-        # by a standalone 1x1 conv after the last decoder block, not by the
-        # block itself; the block keeps halving channels like the others,
-        # so it ends at half of the previous (second-to-last) channel count
-        block_channels = dec_channels[:-1] + (dec_channels[-2] // 2,)
+        self.enc_channels = enc_channels
         self.channels = dec_channels
+        block_channels = dec_channels[:-1] + (dec_channels[-2] // 2,)
+
+        self.enc_blocks = make_blocks(enc_channels)
         self.dec_blocks = make_blocks(block_channels)
 
-        # prepare upconvolutions: doubles the spatial size back up, one per
-        # decoder block, so total encoder pools == total decoder upconvs
+        self.pool = MaxPool2d(2)
         self.upconvs = make_blocks(block_channels,
             block_func=lambda i, ch: ConvTranspose2d(ch[i], ch[i], 2, 2))
 
@@ -94,14 +86,15 @@ class HourGlass(Module):
         self.head = Conv2d(block_channels[-1], dec_channels[-1], 1)
 
     def forward(self, x):
-        # loop through the encoder blocks
         # pass the inputs through the current encoder block, then
         # apply maxpooling on the output to shrink the feature map
         for block in self.enc_blocks:
             x = block(x)
             x = self.pool(x)
 
-        # decoder: loop through the decoder blocks
+        # record the bottleneck size reached by this forward pass, so it
+        self.bottleneck_shape = tuple(x.shape)
+
         # upscale the features back up before the decoder block
         for upconv, dec_block in zip(self.upconvs, self.dec_blocks):
             x = upconv(x)
