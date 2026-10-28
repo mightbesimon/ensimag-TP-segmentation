@@ -6,36 +6,29 @@
 # system, just a quick way to actually see what's in the data instead of
 # guessing: pairing integrity, image/mask sizes, class balance (foreground
 # pixel ratio -- directly relevant to why a weak model like SimpleConv can
-# collapse to "always predict background"), and sample grids with the mask
-# overlaid on the image, including the smallest/largest-foreground examples.
+# collapse to "always predict background"), sample grids (image / mask /
+# overlay / cropped-to-mask), and a collage of every video's first frame.
+# Re-running skips any output file that already exists.
 
+import math
 import os
 import random
 
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
-from imutils import paths
 
-from model import config
+from dataset_tools import crop_to_mask, group_by_video, overlay_mask, pair_image_mask_paths
 
 OUT_DIR = 'dataset_exploration'
 SEED = 42
 
 
-def pair_image_mask_paths():
-	image_paths = sorted(list(paths.list_images(config.IMAGES_PATH)))
-	mask_by_name = {os.path.basename(p): p for p in paths.list_images(config.MASKS_PATH)}
-
-	pairs, missing = [], []
-	for img_path in image_paths:
-		name = os.path.basename(img_path)
-		mask_path = mask_by_name.get(name)
-		if mask_path is None:
-			missing.append(name)
-		else:
-			pairs.append((img_path, mask_path))
-	return pairs, missing
+def skipping(path):
+	exists = os.path.exists(path)
+	if exists:
+		print(f'[INFO] {path} already exists, skipping')
+	return exists
 
 
 def report_sizes(sample):
@@ -55,7 +48,7 @@ def compute_ratios(sample):
 	return rows, unique_vals
 
 
-def save_histogram(rows):
+def save_histogram(rows, path):
 	ratios = np.array([r for _, _, r in rows])
 	print(f'[INFO] foreground pixel ratio over {len(rows)} masks: '
 		f'mean={ratios.mean():.3f} median={np.median(ratios):.3f} '
@@ -66,39 +59,61 @@ def save_histogram(rows):
 	plt.title('foreground pixel ratio per mask (class balance)')
 	plt.xlabel('fraction of pixels that are foreground')
 	plt.ylabel('number of masks')
-	fig.savefig(os.path.join(OUT_DIR, 'foreground_ratio_histogram.png'))
+	fig.savefig(path)
 	plt.close(fig)
-	print(f'[INFO] wrote {OUT_DIR}/foreground_ratio_histogram.png')
+	print(f'[INFO] wrote {path}')
 
 
-def save_grid(rows, filename, title):
-	fig, axs = plt.subplots(nrows=len(rows), ncols=3, figsize=(7, 2.3 * len(rows)))
+def save_grid(rows, path, title):
+	fig, axs = plt.subplots(nrows=len(rows), ncols=4, figsize=(9, 2.3 * len(rows)))
 	if len(rows) == 1:
-		axs = axs.reshape(1, 3)
-	for col, col_title in enumerate(('image', 'mask', 'overlay')):
+		axs = axs.reshape(1, 4)
+	for col, col_title in enumerate(('image', 'mask', 'overlay', 'cropped to mask')):
 		axs[0, col].set_title(col_title)
 
 	for row, (img_path, mask_path, ratio) in enumerate(rows):
 		image = cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2RGB).astype('float32') / 255.0
 		mask = cv2.imread(mask_path, 0)
-
-		overlay = image.copy()
 		fg = mask > 127
-		overlay[fg] = overlay[fg] * 0.55 + np.array([1.0, 0.0, 0.0]) * 0.45
 
 		axs[row, 0].imshow(image)
 		axs[row, 1].imshow(mask, cmap='gray')
-		axs[row, 2].imshow(overlay)
+		axs[row, 2].imshow(overlay_mask(image, fg, color=(1.0, 0.0, 0.0)))
+		axs[row, 3].imshow(crop_to_mask(image, fg))
 		axs[row, 0].set_ylabel(f'{os.path.basename(img_path)}\nfg={ratio:.2%}', fontsize=6, rotation=0, ha='right', va='center')
-		for col in range(3):
+		for col in range(4):
 			axs[row, col].set_xticks([])
 			axs[row, col].set_yticks([])
 
 	fig.suptitle(title)
 	fig.tight_layout()
-	fig.savefig(os.path.join(OUT_DIR, filename))
+	fig.savefig(path)
 	plt.close(fig)
-	print(f'[INFO] wrote {OUT_DIR}/{filename}')
+	print(f'[INFO] wrote {path}')
+
+
+def save_video_first_frames_collage(pairs, path):
+	by_video = group_by_video(pairs)
+	first_frames = [(video, frames[0][0]) for video, frames in sorted(by_video.items())]
+	n = len(first_frames)
+	cols = math.ceil(math.sqrt(n))
+	rows = math.ceil(n / cols)
+
+	fig, axs = plt.subplots(nrows=rows, ncols=cols, figsize=(cols * 1.4, rows * 1.4))
+	axs = np.array(axs).reshape(-1)
+	for ax, (video, img_path) in zip(axs, first_frames):
+		image = cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2RGB)
+		ax.imshow(image)
+		ax.set_title(video, fontsize=5)
+	for ax in axs:
+		ax.set_xticks([])
+		ax.set_yticks([])
+
+	fig.suptitle(f'first frame of each of {n} videos')
+	fig.tight_layout()
+	fig.savefig(path, dpi=150)
+	plt.close(fig)
+	print(f'[INFO] wrote {path} ({n} videos)')
 
 
 if __name__ == '__main__':
@@ -110,17 +125,46 @@ if __name__ == '__main__':
 	if missing:
 		print(f'[WARN] {len(missing)} images have no matching mask, e.g. {missing[:5]}')
 
-	sample = rng.sample(pairs, min(300, len(pairs)))
-	report_sizes(sample[:50])
+	histogram_path = os.path.join(OUT_DIR, 'foreground_ratio_histogram.png')
+	smallest_path = os.path.join(OUT_DIR, 'smallest_foreground.png')
+	largest_path = os.path.join(OUT_DIR, 'largest_foreground.png')
+	random_path = os.path.join(OUT_DIR, 'random_sample.png')
+	collage_path = os.path.join(OUT_DIR, 'video_first_frames.png')
 
-	rows, unique_vals = compute_ratios(sample)
-	shown_vals = sorted(unique_vals)[:20]
-	print(f'[INFO] distinct pixel values seen in sampled masks: {shown_vals}{" ..." if len(unique_vals) > 20 else ""}')
-	save_histogram(rows)
+	need_histogram = not os.path.exists(histogram_path)
+	need_smallest = not os.path.exists(smallest_path)
+	need_largest = not os.path.exists(largest_path)
 
-	rows_by_ratio = sorted(rows, key=lambda r: r[2])
-	save_grid(rows_by_ratio[:4], 'smallest_foreground.png', 'smallest foreground (hardest-looking) examples')
-	save_grid(rows_by_ratio[-4:], 'largest_foreground.png', 'largest foreground (easiest-looking) examples')
-	save_grid(rng.sample(rows, min(8, len(rows))), 'random_sample.png', 'random sample of images + masks')
+	if not (need_histogram or need_smallest or need_largest):
+		print(f'[INFO] {histogram_path}, {smallest_path}, {largest_path} all exist, skipping')
+	else:
+		sample = rng.sample(pairs, min(300, len(pairs)))
+		report_sizes(sample[:50])
+		rows, unique_vals = compute_ratios(sample)
+		shown_vals = sorted(unique_vals)[:20]
+		print(f'[INFO] distinct pixel values seen in sampled masks: {shown_vals}{" ..." if len(unique_vals) > 20 else ""}')
+
+		if need_histogram:
+			save_histogram(rows, histogram_path)
+		else:
+			print(f'[INFO] {histogram_path} already exists, skipping')
+
+		rows_by_ratio = sorted(rows, key=lambda r: r[2])
+		if need_smallest:
+			save_grid(rows_by_ratio[:4], smallest_path, 'smallest foreground (hardest-looking) examples')
+		else:
+			print(f'[INFO] {smallest_path} already exists, skipping')
+		if need_largest:
+			save_grid(rows_by_ratio[-4:], largest_path, 'largest foreground (easiest-looking) examples')
+		else:
+			print(f'[INFO] {largest_path} already exists, skipping')
+
+	if not skipping(random_path):
+		random_sample = rng.sample(pairs, min(8, len(pairs)))
+		random_rows = [(img, mask, float((cv2.imread(mask, 0) > 127).mean())) for img, mask in random_sample]
+		save_grid(random_rows, random_path, 'random sample of images + masks')
+
+	if not skipping(collage_path):
+		save_video_first_frames_collage(pairs, collage_path)
 
 	print(f'[INFO] done -- see {OUT_DIR}/')

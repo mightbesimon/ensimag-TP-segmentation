@@ -1,0 +1,7 @@
+{
+	"models": ["hourglass"],
+	"sweeps": [
+		{"model": "hourglass", "features": [8, 16, 32], "depths": [2, 3, 4]},
+		{"model": "unet", "enc_channels": [3, 24, 48], "dec_channels": [48, 24, 1]}
+	]
+}
