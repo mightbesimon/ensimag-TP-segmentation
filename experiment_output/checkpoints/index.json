@@ -1,0 +1,324 @@
+{
+	"0a2b3e41": {
+		"model_key": "simpleconv",
+		"class_name": "SimpleConv",
+		"enc_channels": [
+			3,
+			16,
+			32,
+			64
+		],
+		"dec_channels": [
+			64,
+			32,
+			16,
+			1
+		],
+		"checkpoints": [
+			{
+				"epoch": 20,
+				"path": "experiment_output/checkpoints/simpleconv_0a2b3e41_ep20_261028T100712.pth",
+				"timestamp": "261028T100712",
+				"training_time_seconds": 349.5008668899536
+			},
+			{
+				"epoch": 40,
+				"path": "experiment_output/checkpoints/simpleconv_0a2b3e41_ep40_261028T102402.pth",
+				"timestamp": "261028T102402",
+				"training_time_seconds": 697.59743475914
+			},
+			{
+				"epoch": 60,
+				"path": "experiment_output/checkpoints/simpleconv_0a2b3e41_ep60_261028T102951.pth",
+				"timestamp": "261028T102951",
+				"training_time_seconds": 1045.0152287483215
+			}
+		]
+	},
+	"847b376e": {
+		"model_key": "hourglass",
+		"class_name": "HourGlass",
+		"enc_channels": [
+			3,
+			16,
+			32,
+			64
+		],
+		"dec_channels": [
+			64,
+			32,
+			16,
+			1
+		],
+		"checkpoints": [
+			{
+				"epoch": 20,
+				"path": "experiment_output/checkpoints/hourglass_847b376e_ep20_261028T100940.pth",
+				"timestamp": "261028T100940",
+				"training_time_seconds": 146.50219559669495
+			},
+			{
+				"epoch": 40,
+				"path": "experiment_output/checkpoints/hourglass_847b376e_ep40_261028T103220.pth",
+				"timestamp": "261028T103220",
+				"training_time_seconds": 293.08192682266235
+			},
+			{
+				"epoch": 60,
+				"path": "experiment_output/checkpoints/hourglass_847b376e_ep60_261028T103448.pth",
+				"timestamp": "261028T103448",
+				"training_time_seconds": 439.1668622493744
+			}
+		]
+	},
+	"bb6aa376": {
+		"model_key": "unet",
+		"class_name": "UNet",
+		"enc_channels": [
+			3,
+			16,
+			32,
+			64
+		],
+		"dec_channels": [
+			64,
+			32,
+			16,
+			1
+		],
+		"checkpoints": [
+			{
+				"epoch": 20,
+				"path": "experiment_output/checkpoints/unet_bb6aa376_ep20_261028T101222.pth",
+				"timestamp": "261028T101222",
+				"training_time_seconds": 161.08515405654907
+			},
+			{
+				"epoch": 40,
+				"path": "experiment_output/checkpoints/unet_bb6aa376_ep40_261028T103734.pth",
+				"timestamp": "261028T103734",
+				"training_time_seconds": 324.72854804992676
+			},
+			{
+				"epoch": 60,
+				"path": "experiment_output/checkpoints/unet_bb6aa376_ep60_261028T104017.pth",
+				"timestamp": "261028T104017",
+				"training_time_seconds": 485.9232220649719
+			}
+		]
+	},
+	"2f1fc7f1": {
+		"model_key": "hourglass",
+		"class_name": "HourGlass",
+		"enc_channels": [
+			3,
+			8,
+			16
+		],
+		"dec_channels": [
+			16,
+			8,
+			1
+		],
+		"checkpoints": [
+			{
+				"epoch": 20,
+				"path": "experiment_output/checkpoints/hourglass_2f1fc7f1_ep20_261028T112831.pth",
+				"timestamp": "261028T112831",
+				"training_time_seconds": 115.41433095932007
+			}
+		]
+	},
+	"a3c7a006": {
+		"model_key": "hourglass",
+		"class_name": "HourGlass",
+		"enc_channels": [
+			3,
+			8,
+			16,
+			32
+		],
+		"dec_channels": [
+			32,
+			16,
+			8,
+			1
+		],
+		"checkpoints": [
+			{
+				"epoch": 20,
+				"path": "experiment_output/checkpoints/hourglass_a3c7a006_ep20_261028T113030.pth",
+				"timestamp": "261028T113030",
+				"training_time_seconds": 116.89701390266418
+			}
+		]
+	},
+	"db2b29df": {
+		"model_key": "hourglass",
+		"class_name": "HourGlass",
+		"enc_channels": [
+			3,
+			8,
+			16,
+			32,
+			64
+		],
+		"dec_channels": [
+			64,
+			32,
+			16,
+			8,
+			1
+		],
+		"checkpoints": [
+			{
+				"epoch": 20,
+				"path": "experiment_output/checkpoints/hourglass_db2b29df_ep20_261028T113227.pth",
+				"timestamp": "261028T113227",
+				"training_time_seconds": 115.85531687736511
+			}
+		]
+	},
+	"09ea1b63": {
+		"model_key": "hourglass",
+		"class_name": "HourGlass",
+		"enc_channels": [
+			3,
+			16,
+			32
+		],
+		"dec_channels": [
+			32,
+			16,
+			1
+		],
+		"checkpoints": [
+			{
+				"epoch": 20,
+				"path": "experiment_output/checkpoints/hourglass_09ea1b63_ep20_261028T113442.pth",
+				"timestamp": "261028T113442",
+				"training_time_seconds": 133.66944217681885
+			}
+		]
+	},
+	"8949ab06": {
+		"model_key": "hourglass",
+		"class_name": "HourGlass",
+		"enc_channels": [
+			3,
+			16,
+			32,
+			64,
+			128
+		],
+		"dec_channels": [
+			128,
+			64,
+			32,
+			16,
+			1
+		],
+		"checkpoints": [
+			{
+				"epoch": 20,
+				"path": "experiment_output/checkpoints/hourglass_8949ab06_ep20_261028T114626.pth",
+				"timestamp": "261028T114626",
+				"training_time_seconds": 158.0457820892334
+			}
+		]
+	},
+	"71e25ff7": {
+		"model_key": "hourglass",
+		"class_name": "HourGlass",
+		"enc_channels": [
+			3,
+			32,
+			64
+		],
+		"dec_channels": [
+			64,
+			32,
+			1
+		],
+		"checkpoints": [
+			{
+				"epoch": 20,
+				"path": "experiment_output/checkpoints/hourglass_71e25ff7_ep20_261028T114938.pth",
+				"timestamp": "261028T114938",
+				"training_time_seconds": 190.67172288894653
+			}
+		]
+	},
+	"0b5acf56": {
+		"model_key": "hourglass",
+		"class_name": "HourGlass",
+		"enc_channels": [
+			3,
+			32,
+			64,
+			128
+		],
+		"dec_channels": [
+			128,
+			64,
+			32,
+			1
+		],
+		"checkpoints": [
+			{
+				"epoch": 20,
+				"path": "experiment_output/checkpoints/hourglass_0b5acf56_ep20_261028T115321.pth",
+				"timestamp": "261028T115321",
+				"training_time_seconds": 221.731840133667
+			}
+		]
+	},
+	"501ae9fb": {
+		"model_key": "hourglass",
+		"class_name": "HourGlass",
+		"enc_channels": [
+			3,
+			32,
+			64,
+			128,
+			256
+		],
+		"dec_channels": [
+			256,
+			128,
+			64,
+			32,
+			1
+		],
+		"checkpoints": [
+			{
+				"epoch": 20,
+				"path": "experiment_output/checkpoints/hourglass_501ae9fb_ep20_261028T115723.pth",
+				"timestamp": "261028T115723",
+				"training_time_seconds": 241.11794590950012
+			}
+		]
+	},
+	"660fe18d": {
+		"model_key": "unet",
+		"class_name": "UNet",
+		"enc_channels": [
+			3,
+			24,
+			48
+		],
+		"dec_channels": [
+			48,
+			24,
+			1
+		],
+		"checkpoints": [
+			{
+				"epoch": 20,
+				"path": "experiment_output/checkpoints/unet_660fe18d_ep20_261028T120030.pth",
+				"timestamp": "261028T120030",
+				"training_time_seconds": 185.04569602012634
+			}
+		]
+	}
+}

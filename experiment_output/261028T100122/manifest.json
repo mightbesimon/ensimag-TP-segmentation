@@ -1,0 +1,73 @@
+{
+	"config": {
+		"models": [
+			"simpleconv",
+			"hourglass",
+			"unet"
+		],
+		"epochs_per_checkpoint": 20,
+		"num_checkpoints": 1,
+		"batch_size": 256,
+		"lr": 0.001,
+		"num_eval_images": 10,
+		"seed": 22,
+		"output_root": "experiment_output",
+		"sweeps": []
+	},
+	"models": [
+		{
+			"label": "SimpleConv(features=16, depth=3)",
+			"model_key": "simpleconv",
+			"hash": "0a2b3e41",
+			"enc_channels": [
+				3,
+				16,
+				32,
+				64
+			],
+			"dec_channels": [
+				64,
+				32,
+				16,
+				1
+			],
+			"output_dir": "SimpleConv_0a2b3e41"
+		},
+		{
+			"label": "HourGlass(features=16, depth=3)",
+			"model_key": "hourglass",
+			"hash": "847b376e",
+			"enc_channels": [
+				3,
+				16,
+				32,
+				64
+			],
+			"dec_channels": [
+				64,
+				32,
+				16,
+				1
+			],
+			"output_dir": "HourGlass_847b376e"
+		},
+		{
+			"label": "UNet(features=16, depth=3)",
+			"model_key": "unet",
+			"hash": "bb6aa376",
+			"enc_channels": [
+				3,
+				16,
+				32,
+				64
+			],
+			"dec_channels": [
+				64,
+				32,
+				16,
+				1
+			],
+			"output_dir": "UNet_bb6aa376"
+		}
+	]
+}

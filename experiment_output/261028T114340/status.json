@@ -1,0 +1,45 @@
+{
+	"stage": "complete",
+	"models": {
+		"2f1fc7f1": {
+			"label": "HourGlass(features=8, depth=2)",
+			"current_epoch": 20
+		},
+		"a3c7a006": {
+			"label": "HourGlass(features=8, depth=3)",
+			"current_epoch": 20
+		},
+		"db2b29df": {
+			"label": "HourGlass(features=8, depth=4)",
+			"current_epoch": 20
+		},
+		"09ea1b63": {
+			"label": "HourGlass(features=16, depth=2)",
+			"current_epoch": 20
+		},
+		"847b376e": {
+			"label": "HourGlass(features=16, depth=3)",
+			"current_epoch": 20
+		},
+		"8949ab06": {
+			"label": "HourGlass(features=16, depth=4)",
+			"current_epoch": 20
+		},
+		"71e25ff7": {
+			"label": "HourGlass(features=32, depth=2)",
+			"current_epoch": 20
+		},
+		"0b5acf56": {
+			"label": "HourGlass(features=32, depth=3)",
+			"current_epoch": 20
+		},
+		"501ae9fb": {
+			"label": "HourGlass(features=32, depth=4)",
+			"current_epoch": 20
+		},
+		"660fe18d": {
+			"label": "UNet(features=24, depth=2)",
+			"current_epoch": 20
+		}
+	}
+}

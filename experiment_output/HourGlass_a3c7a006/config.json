@@ -1,0 +1,17 @@
+{
+	"model_key": "hourglass",
+	"class_name": "HourGlass",
+	"enc_channels": [
+		3,
+		8,
+		16,
+		32
+	],
+	"dec_channels": [
+		32,
+		16,
+		8,
+		1
+	],
+	"hash": "a3c7a006"
+}

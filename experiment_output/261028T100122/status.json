@@ -1,0 +1,17 @@
+{
+	"stage": "complete",
+	"models": {
+		"0a2b3e41": {
+			"label": "SimpleConv(features=16, depth=3)",
+			"current_epoch": 20
+		},
+		"847b376e": {
+			"label": "HourGlass(features=16, depth=3)",
+			"current_epoch": 20
+		},
+		"bb6aa376": {
+			"label": "UNet(features=16, depth=3)",
+			"current_epoch": 20
+		}
+	}
+}

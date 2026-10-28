@@ -1,0 +1,31 @@
+experiment report - run 261028T100122
+config: {"models": ["simpleconv", "hourglass", "unet"], "epochs_per_checkpoint": 20, "num_checkpoints": 1, "batch_size": 256, "lr": 0.001, "num_eval_images": 10, "seed": 22, "output_root": "experiment_output", "sweeps": []}
+
+=== per-model checkpoint progression ===
+-- SimpleConv(features=16, depth=3) (hash 0a2b3e41, 106891 params) --
+  epoch   20: mean bce=0.3055 dice=0.8298 iou=0.7218
+  lowest test loss at epoch 20: 0.3848
+  cumulative training time: 349.50s
+
+-- HourGlass(features=16, depth=3) (hash 847b376e, 130105 params) --
+  epoch   20: mean bce=0.1750 dice=0.8620 iou=0.7698
+  lowest test loss at epoch 19: 0.2213
+  cumulative training time: 146.50s
+
+-- UNet(features=16, depth=3) (hash bb6aa376, 154297 params) --
+  epoch   20: mean bce=0.2163 dice=0.8756 iou=0.7816
+  lowest test loss at epoch 19: 0.2358
+  cumulative training time: 161.09s
+
+=== final checkpoint summary ===
+model                           epoch     params    time(s)      bce     dice      iou
+SimpleConv(features=16, depth=3)     20     106891     349.50   0.3055   0.8298   0.7218
+HourGlass(features=16, depth=3)     20     130105     146.50   0.1750   0.8620   0.7698
+UNet(features=16, depth=3)         20     154297     161.09   0.2163   0.8756   0.7816
+
+=== callouts ===
+best final bce:  HourGlass(features=16, depth=3) (0.1750)
+best final dice: UNet(features=16, depth=3) (0.8756)
+best final iou:  UNet(features=16, depth=3) (0.7816)
+best single prediction overall:  00157_0137 (HourGlass(features=16, depth=3), epoch 20, bce=0.0976)
+worst single prediction overall: 00227_0151 (SimpleConv(features=16, depth=3), epoch 20, bce=0.4498)

@@ -1,0 +1,332 @@
+{
+	"models": {
+		"0a2b3e41": {
+			"model_key": "simpleconv",
+			"class_name": "SimpleConv",
+			"enc_channels": [
+				3,
+				16,
+				32,
+				64
+			],
+			"dec_channels": [
+				64,
+				32,
+				16,
+				1
+			],
+			"max_epoch_trained": 60,
+			"best_bce": 0.16425217390060426,
+			"best_epoch": 60,
+			"runs": [
+				"261028T100122",
+				"261028T101812"
+			],
+			"last_updated": "261028T102952"
+		},
+		"847b376e": {
+			"model_key": "hourglass",
+			"class_name": "HourGlass",
+			"enc_channels": [
+				3,
+				16,
+				32,
+				64
+			],
+			"dec_channels": [
+				64,
+				32,
+				16,
+				1
+			],
+			"max_epoch_trained": 60,
+			"best_bce": 0.1062015101313591,
+			"best_epoch": 60,
+			"runs": [
+				"261028T100122",
+				"261028T101812",
+				"261028T114340"
+			],
+			"last_updated": "261028T114348"
+		},
+		"bb6aa376": {
+			"model_key": "unet",
+			"class_name": "UNet",
+			"enc_channels": [
+				3,
+				16,
+				32,
+				64
+			],
+			"dec_channels": [
+				64,
+				32,
+				16,
+				1
+			],
+			"max_epoch_trained": 60,
+			"best_bce": 0.07950074151158333,
+			"best_epoch": 60,
+			"runs": [
+				"261028T100122",
+				"261028T101812"
+			],
+			"last_updated": "261028T104018"
+		},
+		"2f1fc7f1": {
+			"model_key": "hourglass",
+			"class_name": "HourGlass",
+			"enc_channels": [
+				3,
+				8,
+				16
+			],
+			"dec_channels": [
+				16,
+				8,
+				1
+			],
+			"max_epoch_trained": 20,
+			"best_bce": 0.38854004442691803,
+			"best_epoch": 20,
+			"runs": [
+				"261028T112636",
+				"261028T114340"
+			],
+			"last_updated": "261028T114342"
+		},
+		"a3c7a006": {
+			"model_key": "hourglass",
+			"class_name": "HourGlass",
+			"enc_channels": [
+				3,
+				8,
+				16,
+				32
+			],
+			"dec_channels": [
+				32,
+				16,
+				8,
+				1
+			],
+			"max_epoch_trained": 20,
+			"best_bce": 0.24924921840429307,
+			"best_epoch": 20,
+			"runs": [
+				"261028T112636",
+				"261028T114340"
+			],
+			"last_updated": "261028T114343"
+		},
+		"db2b29df": {
+			"model_key": "hourglass",
+			"class_name": "HourGlass",
+			"enc_channels": [
+				3,
+				8,
+				16,
+				32,
+				64
+			],
+			"dec_channels": [
+				64,
+				32,
+				16,
+				8,
+				1
+			],
+			"max_epoch_trained": 20,
+			"best_bce": 0.17799685001373292,
+			"best_epoch": 20,
+			"runs": [
+				"261028T112636",
+				"261028T114340"
+			],
+			"last_updated": "261028T114345"
+		},
+		"09ea1b63": {
+			"model_key": "hourglass",
+			"class_name": "HourGlass",
+			"enc_channels": [
+				3,
+				16,
+				32
+			],
+			"dec_channels": [
+				32,
+				16,
+				1
+			],
+			"max_epoch_trained": 20,
+			"best_bce": 0.24677218794822692,
+			"best_epoch": 20,
+			"runs": [
+				"261028T112636",
+				"261028T114340"
+			],
+			"last_updated": "261028T114346"
+		},
+		"8949ab06": {
+			"model_key": "hourglass",
+			"class_name": "HourGlass",
+			"enc_channels": [
+				3,
+				16,
+				32,
+				64,
+				128
+			],
+			"dec_channels": [
+				128,
+				64,
+				32,
+				16,
+				1
+			],
+			"max_epoch_trained": 20,
+			"best_bce": 0.10962343066930771,
+			"best_epoch": 20,
+			"runs": [
+				"261028T114340"
+			],
+			"last_updated": "261028T114627"
+		},
+		"71e25ff7": {
+			"model_key": "hourglass",
+			"class_name": "HourGlass",
+			"enc_channels": [
+				3,
+				32,
+				64
+			],
+			"dec_channels": [
+				64,
+				32,
+				1
+			],
+			"max_epoch_trained": 20,
+			"best_bce": 0.2371831715106964,
+			"best_epoch": 20,
+			"runs": [
+				"261028T114340"
+			],
+			"last_updated": "261028T114939"
+		},
+		"0b5acf56": {
+			"model_key": "hourglass",
+			"class_name": "HourGlass",
+			"enc_channels": [
+				3,
+				32,
+				64,
+				128
+			],
+			"dec_channels": [
+				128,
+				64,
+				32,
+				1
+			],
+			"max_epoch_trained": 20,
+			"best_bce": 0.1294926516711712,
+			"best_epoch": 20,
+			"runs": [
+				"261028T114340"
+			],
+			"last_updated": "261028T115322"
+		},
+		"501ae9fb": {
+			"model_key": "hourglass",
+			"class_name": "HourGlass",
+			"enc_channels": [
+				3,
+				32,
+				64,
+				128,
+				256
+			],
+			"dec_channels": [
+				256,
+				128,
+				64,
+				32,
+				1
+			],
+			"max_epoch_trained": 20,
+			"best_bce": 0.2880624011158943,
+			"best_epoch": 20,
+			"runs": [
+				"261028T114340"
+			],
+			"last_updated": "261028T115725"
+		},
+		"660fe18d": {
+			"model_key": "unet",
+			"class_name": "UNet",
+			"enc_channels": [
+				3,
+				24,
+				48
+			],
+			"dec_channels": [
+				48,
+				24,
+				1
+			],
+			"max_epoch_trained": 20,
+			"best_bce": 0.22484621405601501,
+			"best_epoch": 20,
+			"runs": [
+				"261028T114340"
+			],
+			"last_updated": "261028T120031"
+		}
+	},
+	"runs": {
+		"261028T100122": {
+			"created": "261028T100122",
+			"models": [
+				"0a2b3e41",
+				"847b376e",
+				"bb6aa376"
+			],
+			"stage": "complete"
+		},
+		"261028T101812": {
+			"created": "261028T101812",
+			"models": [
+				"0a2b3e41",
+				"847b376e",
+				"bb6aa376"
+			],
+			"stage": "complete"
+		},
+		"261028T112636": {
+			"created": "261028T112636",
+			"models": [
+				"2f1fc7f1",
+				"a3c7a006",
+				"db2b29df",
+				"09ea1b63"
+			],
+			"stage": "training"
+		},
+		"261028T114340": {
+			"created": "261028T114340",
+			"models": [
+				"2f1fc7f1",
+				"a3c7a006",
+				"db2b29df",
+				"09ea1b63",
+				"847b376e",
+				"8949ab06",
+				"71e25ff7",
+				"0b5acf56",
+				"501ae9fb",
+				"660fe18d"
+			],
+			"stage": "complete"
+		}
+	}
+}

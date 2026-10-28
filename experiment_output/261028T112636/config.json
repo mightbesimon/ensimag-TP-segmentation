@@ -1,0 +1,190 @@
+{
+	"models": [
+		"hourglass"
+	],
+	"epochs_per_checkpoint": 20,
+	"checkpoints": 1,
+	"batch_size": 256,
+	"lr": 0.001,
+	"num_eval_images": 10,
+	"seed": 22,
+	"output_root": "experiment_output",
+	"sweeps": [
+		{
+			"model": "hourglass",
+			"features": [
+				8,
+				16,
+				32
+			],
+			"depths": [
+				2,
+				3,
+				4
+			]
+		},
+		{
+			"model": "unet",
+			"enc_channels": [
+				3,
+				24,
+				48
+			],
+			"dec_channels": [
+				48,
+				24,
+				1
+			]
+		}
+	],
+	"run_specs": [
+		{
+			"model_key": "hourglass",
+			"enc_channels": [
+				3,
+				8,
+				16
+			],
+			"dec_channels": [
+				16,
+				8,
+				1
+			]
+		},
+		{
+			"model_key": "hourglass",
+			"enc_channels": [
+				3,
+				8,
+				16,
+				32
+			],
+			"dec_channels": [
+				32,
+				16,
+				8,
+				1
+			]
+		},
+		{
+			"model_key": "hourglass",
+			"enc_channels": [
+				3,
+				8,
+				16,
+				32,
+				64
+			],
+			"dec_channels": [
+				64,
+				32,
+				16,
+				8,
+				1
+			]
+		},
+		{
+			"model_key": "hourglass",
+			"enc_channels": [
+				3,
+				16,
+				32
+			],
+			"dec_channels": [
+				32,
+				16,
+				1
+			]
+		},
+		{
+			"model_key": "hourglass",
+			"enc_channels": [
+				3,
+				16,
+				32,
+				64
+			],
+			"dec_channels": [
+				64,
+				32,
+				16,
+				1
+			]
+		},
+		{
+			"model_key": "hourglass",
+			"enc_channels": [
+				3,
+				16,
+				32,
+				64,
+				128
+			],
+			"dec_channels": [
+				128,
+				64,
+				32,
+				16,
+				1
+			]
+		},
+		{
+			"model_key": "hourglass",
+			"enc_channels": [
+				3,
+				32,
+				64
+			],
+			"dec_channels": [
+				64,
+				32,
+				1
+			]
+		},
+		{
+			"model_key": "hourglass",
+			"enc_channels": [
+				3,
+				32,
+				64,
+				128
+			],
+			"dec_channels": [
+				128,
+				64,
+				32,
+				1
+			]
+		},
+		{
+			"model_key": "hourglass",
+			"enc_channels": [
+				3,
+				32,
+				64,
+				128,
+				256
+			],
+			"dec_channels": [
+				256,
+				128,
+				64,
+				32,
+				1
+			]
+		},
+		{
+			"model_key": "unet",
+			"enc_channels": [
+				3,
+				24,
+				48
+			],
+			"dec_channels": [
+				48,
+				24,
+				1
+			]
+		}
+	]
+}

@@ -1,0 +1,11 @@
+model,hash,num_params,training_time_seconds,final_epoch,final_bce,final_dice,final_iou
+"HourGlass(features=8, depth=2)",2f1fc7f1,7789,115.41,20,0.3885,0.6702,0.5435
+"HourGlass(features=8, depth=3)",a3c7a006,32749,116.9,20,0.2492,0.7971,0.6827
+"HourGlass(features=8, depth=4)",db2b29df,132333,115.86,20,0.178,0.8852,0.7982
+"HourGlass(features=16, depth=2)",09ea1b63,30521,133.67,20,0.2468,0.825,0.7232
+"HourGlass(features=16, depth=3)",847b376e,130105,146.5,20,0.175,0.862,0.7698
+"HourGlass(features=16, depth=4)",8949ab06,527929,158.05,20,0.1096,0.9275,0.8668
+"HourGlass(features=32, depth=2)",71e25ff7,120817,190.67,20,0.2372,0.8491,0.7456
+"HourGlass(features=32, depth=3)",0b5acf56,518641,221.73,20,0.1295,0.9133,0.8445
+"HourGlass(features=32, depth=4)",501ae9fb,2108913,241.12,20,0.2881,0.7978,0.6692
+"UNet(features=24, depth=2)",660fe18d,81157,185.05,20,0.2248,0.8373,0.7304

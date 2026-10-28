@@ -1,0 +1,62 @@
+{
+	"models": [
+		"simpleconv",
+		"hourglass",
+		"unet"
+	],
+	"epochs_per_checkpoint": 20,
+	"checkpoints": 1,
+	"batch_size": 256,
+	"lr": 0.001,
+	"num_eval_images": 10,
+	"seed": 22,
+	"output_root": "experiment_output",
+	"sweeps": [],
+	"run_specs": [
+		{
+			"model_key": "simpleconv",
+			"enc_channels": [
+				3,
+				16,
+				32,
+				64
+			],
+			"dec_channels": [
+				64,
+				32,
+				16,
+				1
+			]
+		},
+		{
+			"model_key": "hourglass",
+			"enc_channels": [
+				3,
+				16,
+				32,
+				64
+			],
+			"dec_channels": [
+				64,
+				32,
+				16,
+				1
+			]
+		},
+		{
+			"model_key": "unet",
+			"enc_channels": [
+				3,
+				16,
+				32,
+				64
+			],
+			"dec_channels": [
+				64,
+				32,
+				16,
+				1
+			]
+		}
+	]
+}

@@ -1,0 +1,4 @@
+model,hash,num_params,training_time_seconds,final_epoch,final_bce,final_dice,final_iou
+"SimpleConv(features=16, depth=3)",0a2b3e41,106891,349.5,20,0.3055,0.8298,0.7218
+"HourGlass(features=16, depth=3)",847b376e,130105,146.5,20,0.175,0.862,0.7698
+"UNet(features=16, depth=3)",bb6aa376,154297,161.09,20,0.2163,0.8756,0.7816

@@ -1,0 +1,73 @@
+experiment report - run 261028T114340
+config: {"models": ["hourglass"], "epochs_per_checkpoint": 20, "checkpoints": 1, "batch_size": 256, "lr": 0.001, "num_eval_images": 10, "seed": 22, "output_root": "experiment_output", "sweeps": [{"model": "hourglass", "features": [8, 16, 32], "depths": [2, 3, 4]}, {"model": "unet", "enc_channels": [3, 24, 48], "dec_channels": [48, 24, 1]}]}
+
+=== per-model checkpoint progression ===
+-- HourGlass(features=8, depth=2) (hash 2f1fc7f1, 7789 params) --
+  epoch   20: mean bce=0.3885 dice=0.6702 iou=0.5435
+  lowest test loss at epoch 20: 0.4922
+  cumulative training time: 115.41s
+
+-- HourGlass(features=8, depth=3) (hash a3c7a006, 32749 params) --
+  epoch   20: mean bce=0.2492 dice=0.7971 iou=0.6827
+  lowest test loss at epoch 20: 0.3106
+  cumulative training time: 116.90s
+
+-- HourGlass(features=8, depth=4) (hash db2b29df, 132333 params) --
+  epoch   20: mean bce=0.1780 dice=0.8852 iou=0.7982
+  lowest test loss at epoch 20: 0.2293
+  cumulative training time: 115.86s
+
+-- HourGlass(features=16, depth=2) (hash 09ea1b63, 30521 params) --
+  epoch   20: mean bce=0.2468 dice=0.8250 iou=0.7232
+  lowest test loss at epoch 20: 0.3292
+  cumulative training time: 133.67s
+
+-- HourGlass(features=16, depth=3) (hash 847b376e, 130105 params) --
+  epoch   20: mean bce=0.1750 dice=0.8620 iou=0.7698
+  lowest test loss at epoch 19: 0.2213
+  cumulative training time: 146.50s
+
+-- HourGlass(features=16, depth=4) (hash 8949ab06, 527929 params) --
+  epoch   20: mean bce=0.1096 dice=0.9275 iou=0.8668
+  lowest test loss at epoch 19: 0.1511
+  cumulative training time: 158.05s
+
+-- HourGlass(features=32, depth=2) (hash 71e25ff7, 120817 params) --
+  epoch   20: mean bce=0.2372 dice=0.8491 iou=0.7456
+  lowest test loss at epoch 20: 0.2596
+  cumulative training time: 190.67s
+
+-- HourGlass(features=32, depth=3) (hash 0b5acf56, 518641 params) --
+  epoch   20: mean bce=0.1295 dice=0.9133 iou=0.8445
+  lowest test loss at epoch 19: 0.1690
+  cumulative training time: 221.73s
+
+-- HourGlass(features=32, depth=4) (hash 501ae9fb, 2108913 params) --
+  epoch   20: mean bce=0.2881 dice=0.7978 iou=0.6692
+  lowest test loss at epoch 19: 0.3554
+  cumulative training time: 241.12s
+
+-- UNet(features=24, depth=2) (hash 660fe18d, 81157 params) --
+  epoch   20: mean bce=0.2248 dice=0.8373 iou=0.7304
+  lowest test loss at epoch 19: 0.2790
+  cumulative training time: 185.05s
+
+=== final checkpoint summary ===
+model                           epoch     params    time(s)      bce     dice      iou
+HourGlass(features=8, depth=2)     20       7789     115.41   0.3885   0.6702   0.5435
+HourGlass(features=8, depth=3)     20      32749     116.90   0.2492   0.7971   0.6827
+HourGlass(features=8, depth=4)     20     132333     115.86   0.1780   0.8852   0.7982
+HourGlass(features=16, depth=2)     20      30521     133.67   0.2468   0.8250   0.7232
+HourGlass(features=16, depth=3)     20     130105     146.50   0.1750   0.8620   0.7698
+HourGlass(features=16, depth=4)     20     527929     158.05   0.1096   0.9275   0.8668
+HourGlass(features=32, depth=2)     20     120817     190.67   0.2372   0.8491   0.7456
+HourGlass(features=32, depth=3)     20     518641     221.73   0.1295   0.9133   0.8445
+HourGlass(features=32, depth=4)     20    2108913     241.12   0.2881   0.7978   0.6692
+UNet(features=24, depth=2)         20      81157     185.05   0.2248   0.8373   0.7304
+
+=== callouts ===
+best final bce:  HourGlass(features=16, depth=4) (0.1096)
+best final dice: HourGlass(features=16, depth=4) (0.9275)
+best final iou:  HourGlass(features=16, depth=4) (0.8668)
+best single prediction overall:  00157_0137 (HourGlass(features=16, depth=4), epoch 20, bce=0.0662)
+worst single prediction overall: 00029_0162 (HourGlass(features=8, depth=2), epoch 20, bce=0.4855)

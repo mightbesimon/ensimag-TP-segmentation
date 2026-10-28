@@ -1,0 +1,222 @@
+{
+	"config": {
+		"models": [
+			"hourglass"
+		],
+		"epochs_per_checkpoint": 20,
+		"checkpoints": 1,
+		"batch_size": 256,
+		"lr": 0.001,
+		"num_eval_images": 10,
+		"seed": 22,
+		"output_root": "experiment_output",
+		"sweeps": [
+			{
+				"model": "hourglass",
+				"features": [
+					8,
+					16,
+					32
+				],
+				"depths": [
+					2,
+					3,
+					4
+				]
+			},
+			{
+				"model": "unet",
+				"enc_channels": [
+					3,
+					24,
+					48
+				],
+				"dec_channels": [
+					48,
+					24,
+					1
+				]
+			}
+		]
+	},
+	"models": [
+		{
+			"label": "HourGlass(features=8, depth=2)",
+			"model_key": "hourglass",
+			"hash": "2f1fc7f1",
+			"enc_channels": [
+				3,
+				8,
+				16
+			],
+			"dec_channels": [
+				16,
+				8,
+				1
+			],
+			"output_dir": "HourGlass_2f1fc7f1"
+		},
+		{
+			"label": "HourGlass(features=8, depth=3)",
+			"model_key": "hourglass",
+			"hash": "a3c7a006",
+			"enc_channels": [
+				3,
+				8,
+				16,
+				32
+			],
+			"dec_channels": [
+				32,
+				16,
+				8,
+				1
+			],
+			"output_dir": "HourGlass_a3c7a006"
+		},
+		{
+			"label": "HourGlass(features=8, depth=4)",
+			"model_key": "hourglass",
+			"hash": "db2b29df",
+			"enc_channels": [
+				3,
+				8,
+				16,
+				32,
+				64
+			],
+			"dec_channels": [
+				64,
+				32,
+				16,
+				8,
+				1
+			],
+			"output_dir": "HourGlass_db2b29df"
+		},
+		{
+			"label": "HourGlass(features=16, depth=2)",
+			"model_key": "hourglass",
+			"hash": "09ea1b63",
+			"enc_channels": [
+				3,
+				16,
+				32
+			],
+			"dec_channels": [
+				32,
+				16,
+				1
+			],
+			"output_dir": "HourGlass_09ea1b63"
+		},
+		{
+			"label": "HourGlass(features=16, depth=3)",
+			"model_key": "hourglass",
+			"hash": "847b376e",
+			"enc_channels": [
+				3,
+				16,
+				32,
+				64
+			],
+			"dec_channels": [
+				64,
+				32,
+				16,
+				1
+			],
+			"output_dir": "HourGlass_847b376e"
+		},
+		{
+			"label": "HourGlass(features=16, depth=4)",
+			"model_key": "hourglass",
+			"hash": "8949ab06",
+			"enc_channels": [
+				3,
+				16,
+				32,
+				64,
+				128
+			],
+			"dec_channels": [
+				128,
+				64,
+				32,
+				16,
+				1
+			],
+			"output_dir": "HourGlass_8949ab06"
+		},
+		{
+			"label": "HourGlass(features=32, depth=2)",
+			"model_key": "hourglass",
+			"hash": "71e25ff7",
+			"enc_channels": [
+				3,
+				32,
+				64
+			],
+			"dec_channels": [
+				64,
+				32,
+				1
+			],
+			"output_dir": "HourGlass_71e25ff7"
+		},
+		{
+			"label": "HourGlass(features=32, depth=3)",
+			"model_key": "hourglass",
+			"hash": "0b5acf56",
+			"enc_channels": [
+				3,
+				32,
+				64,
+				128
+			],
+			"dec_channels": [
+				128,
+				64,
+				32,
+				1
+			],
+			"output_dir": "HourGlass_0b5acf56"
+		},
+		{
+			"label": "HourGlass(features=32, depth=4)",
+			"model_key": "hourglass",
+			"hash": "501ae9fb",
+			"enc_channels": [
+				3,
+				32,
+				64,
+				128,
+				256
+			],
+			"dec_channels": [
+				256,
+				128,
+				64,
+				32,
+				1
+			],
+			"output_dir": "HourGlass_501ae9fb"
+		},
+		{
+			"label": "UNet(features=24, depth=2)",
+			"model_key": "unet",
+			"hash": "660fe18d",
+			"enc_channels": [
+				3,
+				24,
+				48
+			],
+			"dec_channels": [
+				48,
+				24,
+				1
+			],
+			"output_dir": "UNet_660fe18d"
+		}
+	]
+}
