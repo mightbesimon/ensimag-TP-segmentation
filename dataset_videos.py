@@ -16,7 +16,12 @@ from PIL import Image, ImageDraw
 from dataset_tools import crop_to_mask, group_by_video, overlay_mask, pair_image_mask_paths
 
 # edit this list with whichever video numbers (the <video> in <video>_<frame>.png) you want to see
-VIDEO_NUMBERS = ['00037', '00089']
+VIDEO_NUMBERS = [
+	'00002',
+	'00011',
+	'00089',
+	'00113',
+]
 
 OUT_DIR = 'dataset_exploration/videos'
 FPS = 6
