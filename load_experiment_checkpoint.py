@@ -19,16 +19,9 @@ from experiments.config import MODEL_REGISTRY
 from experiments.data import DataManager
 
 
-def _seed_used_for(out_root, model_hash):
-	with open(os.path.join(out_root, 'status.json')) as f:
-		status = json.load(f)
-	run_timestamps = status['models'][model_hash]['runs']
-	latest_run = sorted(run_timestamps)[-1]
-	with open(os.path.join(out_root, latest_run, 'config.json')) as f:
-		return json.load(f)['seed']
+if __name__ == '__main__':
+	checkpoint_path = sys.argv[1]
 
-
-def main(checkpoint_path):
 	ckpt = torch.load(checkpoint_path, weights_only=False)
 
 	# filenames are <model_key>_<hash>_ep<epoch>_<timestamp>.pth
@@ -49,14 +42,15 @@ def main(checkpoint_path):
 	torch.save(model, config.BEST_MODEL_PATH)
 	print(f'[INFO] wrote full model object to {config.BEST_MODEL_PATH} (epoch {ckpt["epoch"]})')
 
-	seed = _seed_used_for(out_root, model_hash)
+	with open(os.path.join(out_root, 'status.json')) as f:
+		status = json.load(f)
+	run_timestamps = status['models'][model_hash]['runs']
+	latest_run = sorted(run_timestamps)[-1]
+	with open(os.path.join(out_root, latest_run, 'config.json')) as f:
+		seed= json.load(f)['seed']
 	data = DataManager(batch_size=1, seed=seed, num_eval_images=1).build()
 	with open(config.TEST_PATH, 'w') as f:
 		f.write('\n'.join(data.test_images))
 	print(f'[INFO] wrote {config.TEST_PATH} ({len(data.test_images)} images, seed {seed})')
 
 	print('[INFO] you can now run: python3 predict.py')
-
-
-if __name__ == '__main__':
-	main(sys.argv[1])
