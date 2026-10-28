@@ -82,9 +82,9 @@ class ExperimentRunner:
 		for target in target_epochs:
 			if target in existing:
 				if run.current_epoch != target:
-					self.checkpoint_mgr.load_into(run.model, existing[target])
+					ckpt = self.checkpoint_mgr.load_into(run.model, existing[target])
 					run.current_epoch = target
-					run.history = existing[target]['history']
+					run.history = ckpt['history']
 					run.cumulative_time = existing[target]['training_time_seconds']
 			elif run.current_epoch < target:
 				if trainer is None:
