@@ -5,6 +5,7 @@ import os
 
 import matplotlib.pyplot as plt
 import numpy as np
+from tqdm import tqdm
 
 from experiments.eval import Evaluator
 
@@ -15,7 +16,10 @@ class PredictGridPlotter:
 		self.loss_fn = loss_fn
 
 	def render_grid(self, model, eval_images, out_dir, epoch, label):
-		results = [Evaluator.evaluate_image(model, path, self.device, self.loss_fn) for path in eval_images]
+		results = [
+			Evaluator.evaluate_image(model, path, self.device, self.loss_fn)
+			for path in tqdm(eval_images, desc=f'eval {label}', leave=False)
+		]
 		best_idx = min(range(len(results)), key=lambda i: results[i]['bce'])
 		worst_idx = max(range(len(results)), key=lambda i: results[i]['bce'])
 

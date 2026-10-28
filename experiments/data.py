@@ -22,7 +22,10 @@ class DataManager:
 
 		self.train_loader = None
 		self.test_loader = None
+		self.test_images = None
 		self.eval_images = None
+
+		self.cpu_count = int(os.environ.get('SLURM_CPUS_PER_TASK', 8))
 
 	@staticmethod
 	def set_seed(seed):
@@ -49,8 +52,20 @@ class DataManager:
 		print(f'[INFO] found {len(train_ds)} examples in the training set...')
 		print(f'[INFO] found {len(test_ds)} examples in the test set...')
 
-		self.train_loader = DataLoader(train_ds, shuffle=True, batch_size=self.batch_size, pin_memory=config.PIN_MEMORY, num_workers=os.cpu_count())
-		self.test_loader = DataLoader(test_ds, shuffle=False, batch_size=self.batch_size, pin_memory=config.PIN_MEMORY, num_workers=os.cpu_count())
+		self.train_loader = DataLoader(train_ds,
+			shuffle=True,
+			batch_size=self.batch_size,
+			pin_memory=config.PIN_MEMORY,
+			num_workers=self.cpu_count,
+		)
+		self.test_loader = DataLoader(test_ds,
+			shuffle=False,
+			batch_size=self.batch_size,
+			pin_memory=config.PIN_MEMORY,
+			num_workers=self.cpu_count,
+		)
+
+		self.test_images = test_images
 
 		# same images get evaluated at every checkpoint and for every model,
 		# so the grids/metrics/distributions are actually comparable

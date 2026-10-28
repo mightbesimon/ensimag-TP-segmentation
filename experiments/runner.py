@@ -113,25 +113,46 @@ class ExperimentRunner:
 			json.dump(run.history, f, indent='\t')
 
 	def run(self):
+		target_epochs = self.cfg.target_epochs()
+		run_specs = self.cfg.run_specs()
+
+		print(f'[INFO] config: {json.dumps(self.cfg.to_dict())}')
+		print(f'[INFO] target epochs: {target_epochs}')
+		for spec in run_specs:
+			print(f'[INFO] will train: {spec.short_label}  enc={spec.enc_channels} dec={spec.dec_channels}')
+
 		DataManager.set_seed(self.cfg.seed)
 		data = DataManager(self.cfg.batch_size, self.cfg.seed, self.cfg.num_eval_images).build()
 		loss_fn = BCEWithLogitsLoss()
 		grid_plotter = PredictGridPlotter(self.device, loss_fn)
 
-		target_epochs = self.cfg.target_epochs()
-		runs = [self._prepare(spec) for spec in self.cfg.run_specs()]
-
 		timestamp = datetime.now().strftime(TIMESTAMP_FORMAT)
 		run_dir = os.path.join(self.out_root, timestamp)
 		os.makedirs(run_dir, exist_ok=True)
+		config_to_save = self.cfg.to_dict()
+		config_to_save['run_specs'] = [
+			{'model_key': s.model_key, 'enc_channels': list(s.enc_channels), 'dec_channels': list(s.dec_channels)}
+			for s in run_specs
+		]
 		with open(os.path.join(run_dir, 'config.json'), 'w') as f:
-			json.dump(self.cfg.to_dict(), f, indent='\t')
+			json.dump(config_to_save, f, indent='\t')
 
-		total_remaining = sum(max(0, target_epochs[-1] - r.current_epoch) for r in runs)
-		pbar = tqdm(total=total_remaining, desc='experiment')
-
+		# build+train one model fully before touching the next: nn.Module
+		# init and DataLoader shuffling both draw from the global RNG, so
+		# building every model upfront would make each model's result
+		# depend on which/how-many sibling models run alongside it in this
+		# same invocation. reseeding right before each model keeps every
+		# model's result reproducible and independent of its siblings.
+		pbar = tqdm(total=0, desc='experiment')
+		runs = []
 		all_results, manifest_entries = [], []
-		for run in runs:
+		for spec in run_specs:
+			DataManager.set_seed(self.cfg.seed)
+			run = self._prepare(spec)
+			runs.append(run)
+			pbar.total += max(0, target_epochs[-1] - run.current_epoch)
+			pbar.refresh()
+
 			print(f'[INFO] {run.run_spec.short_label}: targeting epochs {target_epochs}')
 			checkpoints_out = self._train_and_eval(run, target_epochs, data, grid_plotter, pbar)
 			Status.note_model(self.out_root, timestamp, run.run_spec, run.model_hash, checkpoints_out)
@@ -158,11 +179,15 @@ class ExperimentRunner:
 		Status.write_run_status(run_dir, 'plotting', runs)
 		if len(all_results) > 1:
 			plots = ComparisonPlots(run_dir)
-			plots.training_curves(all_results)
-			plots.final_metrics_bar(all_results)
-			plots.loss_distribution_over_epochs(all_results)
-			plots.qualitative_grid(all_results, data.eval_images, self.device, loss_fn, max_images=5)
-			plots.summary_table(all_results)
+			plot_steps = [
+				('training curves', lambda: plots.training_curves(all_results)),
+				('final metrics bar', lambda: plots.final_metrics_bar(all_results)),
+				('loss distribution', lambda: plots.loss_distribution_over_epochs(all_results)),
+				('qualitative grid', lambda: plots.qualitative_grid(all_results, data.eval_images, self.device, loss_fn, max_images=5)),
+				('summary table', lambda: plots.summary_table(all_results)),
+			]
+			for _, step in tqdm(plot_steps, desc='plot'):
+				step()
 			print(f'[INFO] comparison written to {run_dir}')
 
 		Status.set_run_stage(self.out_root, timestamp, 'reporting')

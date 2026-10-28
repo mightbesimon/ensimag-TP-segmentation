@@ -4,6 +4,7 @@
 # clean flat-flag way to express a list of per-model sweep definitions.
 
 import argparse
+import inspect
 import json
 import os
 from dataclasses import dataclass
@@ -18,12 +19,6 @@ MODEL_REGISTRY = {
 	'simpleconv': SimpleConv,
 	'hourglass': HourGlass,
 	'unet': UNet,
-}
-
-DEFAULT_CHANNELS = {
-	'simpleconv': ((3, 16), (16, 1)),
-	'hourglass': ((3, 16, 32, 64), (64, 32, 16, 1)),
-	'unet': ((3, 16, 32, 64), (64, 32, 16, 1)),
 }
 
 
@@ -85,17 +80,30 @@ class ExperimentConfig:
 		return enc_channels, dec_channels
 
 	@staticmethod
+	def default_channels(model_key):
+		# single source of truth: whatever the class's own __init__ defaults
+		# to in model/network.py -- never duplicate those numbers here
+		sig = inspect.signature(MODEL_REGISTRY[model_key].__init__)
+		return sig.parameters['enc_channels'].default, sig.parameters['dec_channels'].default
+
+	@staticmethod
 	def default_run_specs(model_keys):
-		return [RunSpec(key, *DEFAULT_CHANNELS[key]) for key in model_keys]
+		return [RunSpec(key, *ExperimentConfig.default_channels(key)) for key in model_keys]
 
 	@staticmethod
 	def expand_sweep(sweep_defs):
-		# sweep_defs: list of {'model': key, 'features': [...], 'depths': [...]}
+		# sweep_defs: list of either
+		#   {'model': key, 'features': [...], 'depths': [...]}            (grid, via make_channels)
+		#   {'model': key, 'enc_channels': [...], 'dec_channels': [...]}  (exact, bypasses make_channels)
 		specs = []
 		for entry in sweep_defs:
 			key = entry['model']
-			features_list = entry.get('features', [DEFAULT_CHANNELS[key][0][1]])
-			depths_list = entry.get('depths', [len(DEFAULT_CHANNELS[key][0]) - 1])
+			if 'enc_channels' in entry and 'dec_channels' in entry:
+				specs.append(RunSpec(key, tuple(entry['enc_channels']), tuple(entry['dec_channels'])))
+				continue
+			default_enc, default_dec = ExperimentConfig.default_channels(key)
+			features_list = entry.get('features', [default_enc[1]])
+			depths_list = entry.get('depths', [len(default_enc) - 1])
 			for num_features in features_list:
 				for depth in depths_list:
 					enc, dec = ExperimentConfig.make_channels(num_features, depth)

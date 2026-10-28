@@ -5,7 +5,7 @@ Everything behind `experiment.py`. One file per responsibility, each under ~200 
 ```
 config.py      RunSpec (one model's architecture: model_key, enc_channels, dec_channels)
                ExperimentConfig (MODEL_REGISTRY, sweep expansion, default-json -> --config
-               file -> CLI-flags layering). ExperimentConfig.load() is the only entry point.
+               file -> CLI-flags layering). ExperimentConfig.setup() is the only entry point.
 
 data.py        DataManager -- seeding, dataloaders, the fixed seeded eval-image subset used
                for every checkpoint/model so comparisons are apples-to-apples.
@@ -34,6 +34,55 @@ report.py      ModelReport, Report -- the full-detail terminal/text report, buil
 runner.py      ModelRun, ModelResult, ExperimentRunner -- orchestrates everything above
                following the pipeline documented below.
 ```
+
+## Arguments
+
+```
+python3 experiment.py                                 # run everything with experiment_config.json's defaults
+python3 experiment.py --models hourglass unet          # only these models (fastest-first order, not sorted)
+python3 experiment.py --epochs-per-checkpoint 10 --num-checkpoints 3   # target epochs = [10, 20, 30]
+python3 experiment.py --config myconfig.json            # load a different saved config (see below)
+python3 experiment.py --config myconfig.json --lr 0.01  # flags still override whatever the file set
+python3 experiment.py --report                          # reprint the latest run's report, no training
+python3 experiment.py --report 261027T122740            # reprint one specific past run, by its <timestamp> dir name
+```
+
+Every flag has a default pulled from `experiment_config.json` (project root) — that file *is* the
+set of defaults, not just an example; edit it directly to change what a bare `python3
+experiment.py` does. `--config some_other.json` swaps in a different file's values as the new
+base instead (handy for saving named configs you want to re-run later); any flag you also pass
+on the command line overrides whatever that file says.
+
+| flag | meaning | default (from `experiment_config.json`) |
+|---|---|---|
+| `--models` | which model keys to train (space-separated) | `simpleconv hourglass unet` |
+| `--epochs-per-checkpoint` | epochs trained per checkpoint step | `20` |
+| `--num-checkpoints` | how many checkpoint steps = target epochs; e.g. `3` with the above → targets `[20, 40, 60]` | `1` |
+| `--batch-size` | DataLoader batch size | `256` |
+| `--lr` | Adam learning rate | `0.001` |
+| `--num-eval-images` | size of the fixed seeded eval-image subset used for every checkpoint/model | `10` |
+| `--seed` | seed for data split, eval-image subset, and each model's init/shuffling | `22` |
+| `--output-root` | where everything gets written | `experiment_output` |
+| `--config` | path to a JSON file of these same keys (plus optional `sweeps`) to use as the base instead of `experiment_config.json` | none |
+| `--report` | print a report instead of running; bare flag = latest run, or pass a `<timestamp>` for a specific past run | none |
+
+**`sweeps`** is JSON-config-only (no flat-flag equivalent, since it's inherently a list of
+per-model entries) — add it to a `--config` file to train several architecture variants in one
+run instead of just each model's own class default:
+```json
+{
+	"models": ["hourglass"],
+	"sweeps": [
+		{"model": "hourglass", "features": [8, 16, 32], "depths": [2, 3, 4]},
+		{"model": "unet", "enc_channels": [3, 24, 48], "dec_channels": [48, 24, 1]}
+	]
+}
+```
+Each sweep entry is either `{"model", "features", "depths"}` (expanded into every
+features × depths combination, via the same symmetric doubling scheme `RunSpec`'s defaults
+follow) or `{"model", "enc_channels", "dec_channels"}` (used exactly as given, for a custom
+shape the features/depths formula can't express). When `sweeps` is non-empty it replaces
+`--models` entirely for that run — every architecture trained comes from the sweep list.
 
 ## Pipeline
 
