@@ -50,7 +50,7 @@ class ExperimentConfig:
 	HARD_DEFAULTS = {
 		'models': MODEL_REGISTRY.keys(),
 		'epochs_per_checkpoint': model_config.NUM_EPOCHS,
-		'num_checkpoints': 1,
+		'checkpoints': 1,
 		'batch_size': model_config.BATCH_SIZE,
 		'lr': model_config.INIT_LR,
 		'num_eval_images': 10,
@@ -59,9 +59,10 @@ class ExperimentConfig:
 		'sweeps': [],
 	}
 
-	def __init__(self, values, report_timestamp=None):
+	def __init__(self, values, report_timestamp=None, replot_timestamp=None):
 		self.values = values
 		self.report_timestamp = report_timestamp
+		self.replot_timestamp = replot_timestamp
 
 	def __getattr__(self, name):
 		try:
@@ -119,7 +120,7 @@ class ExperimentConfig:
 		# e.g. [20, 40, 60] -- every run spec is driven to the same set of
 		# target epochs so the final comparison is a fair, same-epoch one
 		step = self.values['epochs_per_checkpoint']
-		n = self.values['num_checkpoints']
+		n = self.values['checkpoints']
 		return [step * i for i in range(1, n + 1)]
 
 	@classmethod
@@ -127,6 +128,7 @@ class ExperimentConfig:
 		pre = argparse.ArgumentParser(add_help=False)
 		pre.add_argument('--config', default=None)
 		pre.add_argument('--report', nargs='?', const='latest', default=None)
+		pre.add_argument('--replot', nargs='?', const='latest', default=None)
 		known, _ = pre.parse_known_args(argv)
 
 		base = dict(cls.HARD_DEFAULTS)
@@ -140,9 +142,10 @@ class ExperimentConfig:
 		parser = argparse.ArgumentParser(description='run the full train/eval/compare pipeline for one or more models')
 		parser.add_argument('--config', default=None, help='JSON file of defaults/sweeps; explicit flags below still override it')
 		parser.add_argument('--report', nargs='?', const='latest', default=None, help='print a report instead of running (optionally a specific run timestamp)')
+		parser.add_argument('--replot', nargs='?', const='latest', default=None, help='regenerate comparison plots/report for a past run instead of running (optionally a specific run timestamp)')
 		parser.add_argument('--models', nargs='+', choices=MODEL_REGISTRY.keys(), default=base['models'])
 		parser.add_argument('--epochs-per-checkpoint', type=int, default=base['epochs_per_checkpoint'])
-		parser.add_argument('--num-checkpoints', type=int, default=base['num_checkpoints'])
+		parser.add_argument('--checkpoints', type=int, default=base['checkpoints'])
 		parser.add_argument('--batch-size', type=int, default=base['batch_size'])
 		parser.add_argument('--lr', type=float, default=base['lr'])
 		parser.add_argument('--num-eval-images', type=int, default=base['num_eval_images'])
@@ -154,7 +157,7 @@ class ExperimentConfig:
 		values.update({
 			'models': args.models,
 			'epochs_per_checkpoint': args.epochs_per_checkpoint,
-			'num_checkpoints': args.num_checkpoints,
+			'checkpoints': args.checkpoints,
 			'batch_size': args.batch_size,
 			'lr': args.lr,
 			'num_eval_images': args.num_eval_images,
@@ -162,4 +165,4 @@ class ExperimentConfig:
 			'output_root': args.output_root,
 		})
 
-		return cls(values, args.report)
+		return cls(values, args.report, args.replot)

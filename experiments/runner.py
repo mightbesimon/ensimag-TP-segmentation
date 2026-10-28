@@ -73,7 +73,7 @@ class ExperimentRunner:
 			return ModelRun(run_spec, model, model_hash, model_dir, latest['epoch'], ckpt['history'], latest['training_time_seconds'])
 		return ModelRun(run_spec, model, model_hash, model_dir, 0, {'train_loss': [], 'test_loss': []}, 0.0)
 
-	def _train_and_eval(self, run, target_epochs, data, grid_plotter, pbar):
+	def _train_and_eval(self, run, target_epochs, data, grid_plotter):
 		# train (whatever's left to reach each target) -> eval, per target
 		existing = {c['epoch']: c for c in self.checkpoint_mgr.list_checkpoints(run.model_hash)}
 		trainer = None
@@ -89,7 +89,7 @@ class ExperimentRunner:
 			elif run.current_epoch < target:
 				if trainer is None:
 					trainer = TrainingManager(run.model, data.train_loader, data.test_loader, self.device, self.cfg.lr)
-				run.cumulative_time += trainer.train(target - run.current_epoch, pbar, run.history)
+				run.cumulative_time += trainer.train(target - run.current_epoch, run.history, label=run.run_spec.short_label)
 				run.current_epoch = target
 				self.checkpoint_mgr.save(run.model, run.run_spec, run.model_hash, target, run.cumulative_time, run.history)
 			else:
@@ -111,6 +111,20 @@ class ExperimentRunner:
 		run.history['bottleneck_shape'] = getattr(run.model, 'bottleneck_shape', None)
 		with open(os.path.join(run.model_dir, 'history.json'), 'w') as f:
 			json.dump(run.history, f, indent='\t')
+
+	@staticmethod
+	def _plot_comparison(run_dir, all_results, data, device, loss_fn):
+		plots = ComparisonPlots(run_dir)
+		plot_steps = [
+			('training curves', lambda: plots.training_curves(all_results)),
+			('generalization gap', lambda: plots.generalization_gap(all_results)),
+			('final metrics bar', lambda: plots.final_metrics_bar(all_results)),
+			('loss distribution', lambda: plots.loss_distribution_over_epochs(all_results)),
+			('qualitative grid', lambda: plots.qualitative_grid(all_results, data.eval_images, device, loss_fn, max_images=5)),
+			('summary table', lambda: plots.summary_table(all_results)),
+		]
+		for _, step in tqdm(plot_steps, desc='plot'):
+			step()
 
 	def run(self):
 		target_epochs = self.cfg.target_epochs()
@@ -143,18 +157,15 @@ class ExperimentRunner:
 		# depend on which/how-many sibling models run alongside it in this
 		# same invocation. reseeding right before each model keeps every
 		# model's result reproducible and independent of its siblings.
-		pbar = tqdm(total=0, desc='experiment')
 		runs = []
 		all_results, manifest_entries = [], []
 		for spec in run_specs:
 			DataManager.set_seed(self.cfg.seed)
 			run = self._prepare(spec)
 			runs.append(run)
-			pbar.total += max(0, target_epochs[-1] - run.current_epoch)
-			pbar.refresh()
 
 			print(f'[INFO] {run.run_spec.short_label}: targeting epochs {target_epochs}')
-			checkpoints_out = self._train_and_eval(run, target_epochs, data, grid_plotter, pbar)
+			checkpoints_out = self._train_and_eval(run, target_epochs, data, grid_plotter)
 			Status.note_model(self.out_root, timestamp, run.run_spec, run.model_hash, checkpoints_out)
 			Status.write_run_status(run_dir, 'training', runs)
 
@@ -170,7 +181,6 @@ class ExperimentRunner:
 				'enc_channels': list(run.run_spec.enc_channels), 'dec_channels': list(run.run_spec.dec_channels),
 				'output_dir': os.path.relpath(run.model_dir, self.out_root),
 			})
-		pbar.close()
 
 		with open(os.path.join(run_dir, 'manifest.json'), 'w') as f:
 			json.dump({'config': self.cfg.to_dict(), 'models': manifest_entries}, f, indent='\t')
@@ -178,16 +188,7 @@ class ExperimentRunner:
 		Status.set_run_stage(self.out_root, timestamp, 'plotting')
 		Status.write_run_status(run_dir, 'plotting', runs)
 		if len(all_results) > 1:
-			plots = ComparisonPlots(run_dir)
-			plot_steps = [
-				('training curves', lambda: plots.training_curves(all_results)),
-				('final metrics bar', lambda: plots.final_metrics_bar(all_results)),
-				('loss distribution', lambda: plots.loss_distribution_over_epochs(all_results)),
-				('qualitative grid', lambda: plots.qualitative_grid(all_results, data.eval_images, self.device, loss_fn, max_images=5)),
-				('summary table', lambda: plots.summary_table(all_results)),
-			]
-			for _, step in tqdm(plot_steps, desc='plot'):
-				step()
+			self._plot_comparison(run_dir, all_results, data, self.device, loss_fn)
 			print(f'[INFO] comparison written to {run_dir}')
 
 		Status.set_run_stage(self.out_root, timestamp, 'reporting')

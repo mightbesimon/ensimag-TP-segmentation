@@ -43,7 +43,7 @@ class Report:
 		self.model_reports = model_reports
 
 	@staticmethod
-	def _read_csv_rows(path):
+	def read_csv_rows(path):
 		with open(path) as f:
 			rows = list(csv.DictReader(f))
 		for r in rows:
@@ -81,7 +81,7 @@ class Report:
 			checkpoint_metrics = []
 			for path in sorted(glob.glob(os.path.join(model_dir, 'predict_metrics_ep*.csv'))):
 				epoch = int(METRIC_CSV_RE.search(path).group(1))
-				checkpoint_metrics.append((epoch, cls._read_csv_rows(path)))
+				checkpoint_metrics.append((epoch, cls.read_csv_rows(path)))
 			checkpoint_metrics.sort(key=lambda t: t[0])
 
 			model_reports.append(ModelReport(entry, history, checkpoint_metrics))

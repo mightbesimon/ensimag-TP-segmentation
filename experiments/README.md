@@ -20,7 +20,7 @@ train.py       CheckpointManager -- checkpoints/index.json, save/load/find_lates
 
 plots.py       PredictGridPlotter -- per-checkpoint grid (image/gt/pred/prob, best+worst
                marked) and the training-curve snapshot for one model.
-               ComparisonPlots -- the 5 cross-model comparison figures.
+               ComparisonPlots -- the 6 cross-model comparison figures.
                Plots data only; never evaluates or trains.
 
 dashboard.py   Status -- reads/writes experiment_output/status.json (global, cross-run) and
@@ -33,6 +33,10 @@ report.py      ModelReport, Report -- the full-detail terminal/text report, buil
 
 runner.py      ModelRun, ModelResult, ExperimentRunner -- orchestrates everything above
                following the pipeline documented below.
+
+replot.py      Replotter -- regenerates a past run's comparison figures + report entirely
+               from disk (rebuilds each model, loads its latest checkpoint, re-plots), no
+               training involved. For when a plotting change should apply to an old run too.
 ```
 
 ## Arguments
@@ -40,11 +44,13 @@ runner.py      ModelRun, ModelResult, ExperimentRunner -- orchestrates everythin
 ```
 python3 experiment.py                                 # run everything with experiment_config.json's defaults
 python3 experiment.py --models hourglass unet          # only these models (fastest-first order, not sorted)
-python3 experiment.py --epochs-per-checkpoint 10 --num-checkpoints 3   # target epochs = [10, 20, 30]
+python3 experiment.py --epochs-per-checkpoint 10 --checkpoints 3   # target epochs = [10, 20, 30]
 python3 experiment.py --config myconfig.json            # load a different saved config (see below)
 python3 experiment.py --config myconfig.json --lr 0.01  # flags still override whatever the file set
 python3 experiment.py --report                          # reprint the latest run's report, no training
 python3 experiment.py --report 261027T122740            # reprint one specific past run, by its <timestamp> dir name
+python3 experiment.py --replot                          # regenerate the latest run's comparison figures, no training
+python3 experiment.py --replot 261027T122740             # regenerate one specific past run's figures (e.g. after a plotting fix)
 ```
 
 Every flag has a default pulled from `experiment_config.json` (project root) — that file *is* the
@@ -57,7 +63,7 @@ on the command line overrides whatever that file says.
 |---|---|---|
 | `--models` | which model keys to train (space-separated) | `simpleconv hourglass unet` |
 | `--epochs-per-checkpoint` | epochs trained per checkpoint step | `20` |
-| `--num-checkpoints` | how many checkpoint steps = target epochs; e.g. `3` with the above → targets `[20, 40, 60]` | `1` |
+| `--checkpoints` | how many checkpoint steps = target epochs; e.g. `3` with the above → targets `[20, 40, 60]` | `1` |
 | `--batch-size` | DataLoader batch size | `256` |
 | `--lr` | Adam learning rate | `0.001` |
 | `--num-eval-images` | size of the fixed seeded eval-image subset used for every checkpoint/model | `10` |
@@ -65,11 +71,14 @@ on the command line overrides whatever that file says.
 | `--output-root` | where everything gets written | `experiment_output` |
 | `--config` | path to a JSON file of these same keys (plus optional `sweeps`) to use as the base instead of `experiment_config.json` | none |
 | `--report` | print a report instead of running; bare flag = latest run, or pass a `<timestamp>` for a specific past run | none |
+| `--replot` | regenerate a past run's comparison figures + report instead of running, entirely from what's already on disk (no training); bare flag = latest run, or pass a `<timestamp>` | none |
 
-**`sweeps`** is JSON-config-only (no flat-flag equivalent, since it's inherently a list of
-per-model entries) — add it to a `--config` file to train several architecture variants in one
-run instead of just each model's own class default:
+**There is no `--features`/`--depths` flag.** Varying feature count or depth is only done
+through `sweeps` in a `--config` JSON file — not a flat flag, by design, since it's a list of
+per-model entries rather than a single value. To sweep architectures, write a file and pass it:
+
 ```json
+// hourglass_sweep.json
 {
 	"models": ["hourglass"],
 	"sweeps": [
@@ -78,11 +87,15 @@ run instead of just each model's own class default:
 	]
 }
 ```
+```
+python3 experiment.py --config hourglass_sweep.json
+```
 Each sweep entry is either `{"model", "features", "depths"}` (expanded into every
-features × depths combination, via the same symmetric doubling scheme `RunSpec`'s defaults
-follow) or `{"model", "enc_channels", "dec_channels"}` (used exactly as given, for a custom
-shape the features/depths formula can't express). When `sweeps` is non-empty it replaces
-`--models` entirely for that run — every architecture trained comes from the sweep list.
+features × depths combination, via the same symmetric doubling scheme each class's own
+defaults follow) or `{"model", "enc_channels", "dec_channels"}` (used exactly as given, for a
+custom shape the features/depths formula can't express). When `sweeps` is non-empty it replaces
+`--models` entirely for that run — every architecture trained comes from the sweep list, and
+`--models` on the command line is ignored.
 
 ## Pipeline
 
@@ -92,7 +105,7 @@ resumed run:  train (whatever's left) -> eval -> plot -> report
 ```
 
 `train` and `eval` are interleaved *per target epoch*, not run as separate passes: for
-each target epoch (`epochs_per_checkpoint * [1..num_checkpoints]`, e.g. `[20, 40, 60]`),
+each target epoch (`epochs_per_checkpoint * [1..checkpoints]`, e.g. `[20, 40, 60]`),
 `ExperimentRunner` either reuses an existing checkpoint at that exact epoch, or trains just
 the gap from wherever the model currently is, then immediately runs `eval` (the predict
 grid) and checkpoints. This is also how resuming works: every model is identified by
@@ -126,8 +139,9 @@ experiment_output/
     manifest.json                      # which model hashes this run compared
     status.json                        # this run's own pipeline progress (training ->
                                         # plotting -> reporting -> complete)
-    training_curves.png  final_metrics_bar.png  loss_distribution_over_epochs.png
-    qualitative_grid.png  summary_table.png  summary.csv
+    training_curves.png  generalization_gap.png  final_metrics_bar.png
+    loss_distribution_over_epochs.png  qualitative_grid.png
+    summary_table.png  summary.csv
     report.txt
 ```
 

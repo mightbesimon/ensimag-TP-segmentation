@@ -10,6 +10,7 @@ from datetime import datetime
 import torch
 from torch.nn import BCEWithLogitsLoss
 from torch.optim import Adam
+from tqdm import tqdm
 
 TIMESTAMP_FORMAT = '%y%m%dT%H%M%S'
 
@@ -95,9 +96,9 @@ class TrainingManager:
 		signature = sorted((name, tuple(p.shape)) for name, p in model.state_dict().items())
 		return hashlib.sha256(repr(signature).encode('utf-8')).hexdigest()[:8]
 
-	def train(self, epochs, pbar, history):
+	def train(self, epochs, history, label=''):
 		start_time = time.time()
-		for _ in range(epochs):
+		for _ in tqdm(range(epochs), desc=label):
 			self.model.train()
 			total_train_loss = 0
 			total_test_loss = 0
@@ -125,7 +126,5 @@ class TrainingManager:
 			avg_test_loss = total_test_loss / self.test_steps
 			history['train_loss'].append(float(avg_train_loss.cpu().detach().numpy()))
 			history['test_loss'].append(float(avg_test_loss.cpu().detach().numpy()))
-
-			pbar.update(1)
 
 		return time.time() - start_time

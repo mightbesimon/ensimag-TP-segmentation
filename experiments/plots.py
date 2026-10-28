@@ -103,6 +103,25 @@ class ComparisonPlots:
 		fig.savefig(self._path('training_curves.png'))
 		plt.close(fig)
 
+	def generalization_gap(self, model_results):
+		# test loss minus train loss, per epoch, per model -- the overlaid
+		# train/test lines in training_curves.png show the same information,
+		# but this isolates the gap itself so overfitting is directly visible
+		# rather than something you have to eyeball between two lines
+		fig = plt.figure()
+		colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+		for color, res in zip(colors, model_results):
+			epochs = range(1, len(res.history['train_loss']) + 1)
+			gap = [test - train for train, test in zip(res.history['train_loss'], res.history['test_loss'])]
+			plt.plot(epochs, gap, color=color, label=res.label)
+		plt.axhline(0, color='gray', linewidth=0.8, linestyle=':')
+		plt.title('generalization gap (test loss - train loss)')
+		plt.xlabel('epoch #')
+		plt.ylabel('test loss - train loss')
+		plt.legend(fontsize=8)
+		fig.savefig(self._path('generalization_gap.png'))
+		plt.close(fig)
+
 	def final_metrics_bar(self, model_results):
 		metrics = ('bce', 'dice', 'iou')
 		fig, axs = plt.subplots(ncols=len(metrics), figsize=(4 * len(metrics), 4))
@@ -199,13 +218,15 @@ class ComparisonPlots:
 			writer.writeheader()
 			writer.writerows(rows)
 
-		fig, ax = plt.subplots(figsize=(11, 1 + 0.5 * len(rows)))
-		ax.axis('off')
 		columns = list(rows[0].keys())
 		cell_text = [[str(row[c]) for c in columns] for row in rows]
+		max_label_len = max(len(row['model']) for row in rows)
+		fig, ax = plt.subplots(figsize=(max(11, 6 + 0.11 * max_label_len), 1 + 0.5 * len(rows)))
+		ax.axis('off')
 		table = ax.table(cellText=cell_text, colLabels=columns, loc='center', cellLoc='center')
 		table.auto_set_font_size(False)
 		table.set_fontsize(8)
+		table.auto_set_column_width(col=list(range(len(columns))))
 		table.scale(1, 1.6)
 		fig.tight_layout()
 		fig.savefig(self._path('summary_table.png'))
