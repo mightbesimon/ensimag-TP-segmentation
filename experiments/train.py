@@ -39,10 +39,23 @@ class CheckpointManager:
 		checkpoints = self.list_checkpoints(model_hash)
 		return checkpoints[-1] if checkpoints else None
 
+	def find_at_or_before(self, model_hash, epoch):
+		# for replotting a past run as it actually was: that run may not be
+		# the one that trained the latest checkpoint for this hash, so
+		# "latest overall" is wrong -- this is "latest as of that run"
+		candidates = [c for c in self.list_checkpoints(model_hash) if c['epoch'] <= epoch]
+		return candidates[-1] if candidates else None
+
 	def load_into(self, model, checkpoint_entry):
 		ckpt = torch.load(checkpoint_entry['path'], weights_only=False)
 		model.load_state_dict(ckpt['model_state_dict'])
 		return ckpt
+
+	@staticmethod
+	def read_history(checkpoint_entry):
+		# just the history frozen inside a checkpoint at save time (no model
+		# object needed) -- for Report, which doesn't build models
+		return torch.load(checkpoint_entry['path'], weights_only=False)['history']
 
 	def save(self, model, run_spec, model_hash, epoch, training_time_seconds, history):
 		timestamp = datetime.now().strftime(TIMESTAMP_FORMAT)

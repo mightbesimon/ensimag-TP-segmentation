@@ -198,6 +198,44 @@ class ComparisonPlots:
 		fig.savefig(self._path('qualitative_grid.png'))
 		plt.close(fig)
 
+	@staticmethod
+	def _overlay(image, mask_binary, color, alpha=0.45):
+		# the predicted/ground-truth mask tinted directly onto the photo,
+		# rather than shown as its own separate black/white image
+		overlay = image.copy()
+		overlay[mask_binary] = overlay[mask_binary] * (1 - alpha) + np.array(color, dtype=np.float32) * alpha
+		return overlay
+
+	def overlay_grid(self, model_results, eval_images, device, loss_fn, max_images):
+		shown = eval_images[:max_images]
+		n, n_models = len(shown), len(model_results)
+
+		fig, axs = plt.subplots(nrows=n, ncols=1 + n_models, figsize=(2.2 * (1 + n_models), 2.5 * n))
+		if n == 1:
+			axs = axs.reshape(1, -1)
+		axs[0, 0].set_title('ground truth')
+		for m, res in enumerate(model_results):
+			axs[0, 1 + m].set_title(res.label, fontsize=8)
+
+		for row, path in enumerate(shown):
+			r0 = Evaluator.evaluate_image(model_results[0].model, path, device, loss_fn)
+			axs[row, 0].imshow(self._overlay(r0['orig'], r0['gt_mask'] > 127, color=(0.0, 1.0, 0.0)))
+			axs[row, 0].set_ylabel(r0['name'], fontsize=7, rotation=0, ha='right', va='center')
+
+			for m, res in enumerate(model_results):
+				r = Evaluator.evaluate_image(res.model, path, device, loss_fn)
+				axs[row, 1 + m].imshow(self._overlay(r['orig'], r['pred_mask'] > 127, color=(1.0, 0.0, 0.0)))
+				axs[row, 1 + m].set_xlabel(f'bce={r["bce"]:.3f}', fontsize=7)
+
+			for col in range(axs.shape[1]):
+				axs[row, col].set_xticks([])
+				axs[row, col].set_yticks([])
+
+		fig.suptitle('predicted mask overlaid on image (red) vs ground truth (green)')
+		fig.tight_layout()
+		fig.savefig(self._path('overlay_grid.png'))
+		plt.close(fig)
+
 	def summary_table(self, model_results):
 		rows = []
 		for res in model_results:

@@ -121,6 +121,7 @@ class ExperimentRunner:
 			('final metrics bar', lambda: plots.final_metrics_bar(all_results)),
 			('loss distribution', lambda: plots.loss_distribution_over_epochs(all_results)),
 			('qualitative grid', lambda: plots.qualitative_grid(all_results, data.eval_images, device, loss_fn, max_images=5)),
+			('overlay grid', lambda: plots.overlay_grid(all_results, data.eval_images, device, loss_fn, max_images=5)),
 			('summary table', lambda: plots.summary_table(all_results)),
 		]
 		for _, step in tqdm(plot_steps, desc='plot'):

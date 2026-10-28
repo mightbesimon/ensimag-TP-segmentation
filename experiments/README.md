@@ -20,7 +20,7 @@ train.py       CheckpointManager -- checkpoints/index.json, save/load/find_lates
 
 plots.py       PredictGridPlotter -- per-checkpoint grid (image/gt/pred/prob, best+worst
                marked) and the training-curve snapshot for one model.
-               ComparisonPlots -- the 6 cross-model comparison figures.
+               ComparisonPlots -- the 7 cross-model comparison figures.
                Plots data only; never evaluates or trains.
 
 dashboard.py   Status -- reads/writes experiment_output/status.json (global, cross-run) and
@@ -140,7 +140,7 @@ experiment_output/
     status.json                        # this run's own pipeline progress (training ->
                                         # plotting -> reporting -> complete)
     training_curves.png  generalization_gap.png  final_metrics_bar.png
-    loss_distribution_over_epochs.png  qualitative_grid.png
+    loss_distribution_over_epochs.png  qualitative_grid.png  overlay_grid.png
     summary_table.png  summary.csv
     report.txt
 ```
