@@ -80,28 +80,42 @@ class ExperimentRunner:
 		checkpoints_out = []
 
 		for target in target_epochs:
+			if run.current_epoch > target:
+				# already past this target (e.g. a previous run used a
+				# different epochs-per-checkpoint); can't go back
+				continue
+
 			if target in existing:
 				if run.current_epoch != target:
 					ckpt = self.checkpoint_mgr.load_into(run.model, existing[target])
 					run.current_epoch = target
 					run.history = ckpt['history']
 					run.cumulative_time = existing[target]['training_time_seconds']
-			elif run.current_epoch < target:
+
+				# a reused checkpoint's eval results can't have changed --
+				# its weights are frozen, so only render if they're missing
+				metrics_path = os.path.join(run.model_dir, f'predict_metrics_ep{run.current_epoch}.csv')
+				try:
+					results = Report.read_csv_rows(metrics_path)
+					print(f'[INFO] {run.run_spec.short_label}: epoch {run.current_epoch} already evaluated, reusing {metrics_path}')
+				except FileNotFoundError:
+					results = grid_plotter.render_grid(run.model, data.eval_images, run.model_dir, run.current_epoch, f'{run.run_spec.short_label} - epoch {run.current_epoch}')
+					# deliberately not touching training_curve/history.json
+					# here: run.history is this checkpoint's frozen snapshot,
+					# which could be older/shorter than what's already saved
+					# there if this isn't the model's latest checkpoint
+
+			else:
 				if trainer is None:
 					trainer = TrainingManager(run.model, data.train_loader, data.test_loader, self.device, self.cfg.lr)
 				run.cumulative_time += trainer.train(target - run.current_epoch, run.history, label=run.run_spec.short_label)
 				run.current_epoch = target
 				self.checkpoint_mgr.save(run.model, run.run_spec, run.model_hash, target, run.cumulative_time, run.history)
-			else:
-				# already past this target (e.g. a previous run used a
-				# different epochs-per-checkpoint); can't go back, so this
-				# particular target is simply unreachable
-				continue
+				results = grid_plotter.render_grid(run.model, data.eval_images, run.model_dir, run.current_epoch, f'{run.run_spec.short_label} - epoch {run.current_epoch}')
+				grid_plotter.render_training_curve(run.history, run.model_dir, run.current_epoch, run.run_spec.short_label)
+				self._save_model_history(run)
 
-			results = grid_plotter.render_grid(run.model, data.eval_images, run.model_dir, run.current_epoch, f'{run.run_spec.short_label} - epoch {run.current_epoch}')
 			checkpoints_out.append({'epoch': run.current_epoch, 'results': results})
-			grid_plotter.render_training_curve(run.history, run.model_dir, run.current_epoch, run.run_spec.short_label)
-			self._save_model_history(run)
 
 		return checkpoints_out
 
