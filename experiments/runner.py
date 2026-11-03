@@ -140,6 +140,7 @@ class ExperimentRunner:
 		]
 		for _, step in tqdm(plot_steps, desc='plot'):
 			step()
+		plots.video_comparison(all_results, device, loss_fn)
 
 	def run(self):
 		target_epochs = self.cfg.target_epochs()

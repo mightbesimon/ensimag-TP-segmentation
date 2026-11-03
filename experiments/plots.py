@@ -7,9 +7,15 @@ import matplotlib
 matplotlib.use('Agg')  # headless: skip GUI-backend auto-detection (Qt/Tk), which breaks on display-less compute nodes
 import matplotlib.pyplot as plt
 import numpy as np
+from PIL import Image, ImageDraw
 from tqdm import tqdm
 
+from dataset_tools import group_by_video, pair_image_mask_paths
 from experiments.eval import Evaluator
+
+VIDEO_COMPARISON_NUMBER = '00011'
+VIDEO_COMPARISON_FPS = 6
+VIDEO_COMPARISON_LABEL_HEIGHT = 16
 
 
 class PredictGridPlotter:
@@ -272,3 +278,43 @@ class ComparisonPlots:
 		fig.savefig(self._path('summary_table.png'))
 		plt.close(fig)
 		return rows
+
+	@staticmethod
+	def _label_panel(image_float, text):
+		# image_float: HxWx3, 0..1 range (same convention as _overlay)
+		img = Image.fromarray((image_float * 255).astype(np.uint8))
+		canvas = Image.new('RGB', (img.width, img.height + VIDEO_COMPARISON_LABEL_HEIGHT), 'white')
+		canvas.paste(img, (0, VIDEO_COMPARISON_LABEL_HEIGHT))
+		ImageDraw.Draw(canvas).text((4, 2), text, fill='black')
+		return canvas
+
+	def video_comparison(self, model_results, device, loss_fn, video_number=VIDEO_COMPARISON_NUMBER, fps=VIDEO_COMPARISON_FPS):
+		# same per-frame idea as dataset_videos.py, but rows stacked vertically
+		# (one row per model, plus ground truth) instead of panels side by side --
+		# this iterates every frame of the whole video per model, so it's
+		# significantly slower than the other comparison plots above, hence its
+		# own progress bar rather than being folded into theirs
+		pairs, _ = pair_image_mask_paths()
+		frames_info = group_by_video(pairs).get(video_number)
+		if not frames_info:
+			print(f'[WARN] video comparison: no frames found for video {video_number}, skipping')
+			return
+
+		frames = []
+		for image_path, _, _ in tqdm(frames_info, desc=f'video comparison ({video_number})'):
+			r0 = Evaluator.evaluate_image(model_results[0].model, image_path, device, loss_fn)
+			rows = [self._label_panel(self._overlay(r0['orig'], r0['gt_mask'] > 127, color=(0.0, 1.0, 0.0)), 'ground truth')]
+			for res in model_results:
+				r = Evaluator.evaluate_image(res.model, image_path, device, loss_fn)
+				rows.append(self._label_panel(self._overlay(r['orig'], r['pred_mask'] > 127, color=(1.0, 0.0, 0.0)), res.label))
+
+			composite = Image.new('RGB', (rows[0].width, sum(row.height for row in rows)), 'white')
+			y = 0
+			for row in rows:
+				composite.paste(row, (0, y))
+				y += row.height
+			frames.append(composite)
+
+		out_path = self._path(f'video_comparison_{video_number}.gif')
+		frames[0].save(out_path, save_all=True, append_images=frames[1:], duration=int(1000 / fps), loop=0)
+		print(f'[INFO] wrote {out_path} ({len(frames)} frames, {len(model_results)} models)')

@@ -142,6 +142,10 @@ experiment_output/
     training_curves.png  generalization_gap.png  final_metrics_bar.png
     loss_distribution_over_epochs.png  qualitative_grid.png  overlay_grid.png
     summary_table.png  summary.csv
+    video_comparison_00011.gif         # every model's predicted-mask overlay, stacked as
+                                        # rows (ground truth on top), one frame per video
+                                        # frame -- always video 00011, slower than the
+                                        # other plots above so it gets its own progress bar
     report.txt
 ```
 
