@@ -30,11 +30,17 @@ class Status:
 			json.dump(status, f, indent='\t')
 
 	@staticmethod
-	def note_model(out_root, timestamp, run_spec, model_hash, checkpoints_out):
+	def note_model(out_root, timestamp, run_spec, model_hash, seed, checkpoints_out):
+		# keyed by hash+seed, not hash alone: a hash is an architecture, and
+		# different seeds of the same architecture share a model dir but are
+		# different experiments -- mixing their stats under one key would
+		# conflate e.g. one seed's best_bce with another's max_epoch_trained
 		status = Status.read_global(out_root)
-		entry = status['models'].setdefault(model_hash, {
+		key = f'{model_hash}_s{seed}'
+		entry = status['models'].setdefault(key, {
 			'model_key': run_spec.model_key, 'class_name': run_spec.class_name,
 			'enc_channels': list(run_spec.enc_channels), 'dec_channels': list(run_spec.dec_channels),
+			'arch_label': run_spec.arch_label, 'hash': model_hash, 'seed': seed,
 			'max_epoch_trained': 0, 'best_bce': None, 'best_epoch': None, 'runs': [],
 		})
 		for c in checkpoints_out:
@@ -47,8 +53,8 @@ class Status:
 			entry['runs'].append(timestamp)
 
 		run_entry = status['runs'].setdefault(timestamp, {'created': timestamp, 'models': [], 'stage': 'training'})
-		if model_hash not in run_entry['models']:
-			run_entry['models'].append(model_hash)
+		if key not in run_entry['models']:
+			run_entry['models'].append(key)
 
 		Status.write_global(out_root, status)
 
@@ -60,11 +66,11 @@ class Status:
 			Status.write_global(out_root, status)
 
 	@staticmethod
-	def write_run_status(run_dir, stage, model_runs):
+	def write_run_status(run_dir, stage, model_runs, seed):
 		status = {
 			'stage': stage,
 			'models': {
-				r.model_hash: {'label': r.run_spec.short_label, 'current_epoch': r.current_epoch}
+				f'{r.model_hash}_s{seed}': {'label': r.run_spec.short_label, 'current_epoch': r.current_epoch}
 				for r in model_runs
 			},
 		}
@@ -84,8 +90,8 @@ class Dashboard:
 			for ts, run in sorted(status.get('runs', {}).items(), reverse=True)
 		]
 		models = [
-			{**m, 'hash': h, 'dir': f'{out_rel}/{m["class_name"]}_{h}'}
-			for h, m in status.get('models', {}).items()
+			{**m, 'key': key, 'dir': f'{out_rel}/{m["class_name"]}_{m["arch_label"]}'}
+			for key, m in status.get('models', {}).items()
 		]
 
 		with open(cls.PATH, 'w') as f:
@@ -116,7 +122,7 @@ class Dashboard:
 <h1>experiment dashboard</h1>
 <h2>runs</h2>
 <table><tbody id="runs-body"></tbody></table>
-<h2>models (by hash)</h2>
+<h2>models (by architecture + seed)</h2>
 <table><tbody id="models-body"></tbody></table>
 <script>
 const DATA = {data};
@@ -151,17 +157,18 @@ function renderRuns() {{
 
 function renderModels() {{
 	const tbody = document.getElementById('models-body');
-	tbody.appendChild(el('tr', {{}}, ['hash', 'class', 'max epoch', 'best bce'].map(h => el('th', {{}}, [h]))));
+	tbody.appendChild(el('tr', {{}}, ['architecture', 'seed', 'class', 'max epoch', 'best bce'].map(h => el('th', {{}}, [h]))));
 	DATA.models.forEach(m => {{
 		const bestBce = m.best_bce != null ? m.best_bce.toFixed(4) : '-';
 		const ep = m.max_epoch_trained;
 		addExpandable(tbody,
-			4, [m.hash, m.class_name, ep, bestBce],
-			4, [
+			5, [m.arch_label, m.seed, m.class_name, ep, bestBce],
+			5, [
+				el('p', {{}}, ['hash: ' + m.hash]),
 				el('p', {{}}, ['enc: ' + JSON.stringify(m.enc_channels) + '  dec: ' + JSON.stringify(m.dec_channels)]),
 				el('p', {{}}, ['used in runs: ' + (m.runs || []).join(', ')]),
-				el('img', {{src: m.dir + '/training_curve_ep' + ep + '.png'}}),
-				el('img', {{src: m.dir + '/predict_grid_ep' + ep + '.png'}}),
+				el('img', {{src: m.dir + '/training_curve_ep' + ep + '_s' + m.seed + '.png'}}),
+				el('img', {{src: m.dir + '/predict_grid_ep' + ep + '_s' + m.seed + '.png'}}),
 			]);
 	}});
 }}

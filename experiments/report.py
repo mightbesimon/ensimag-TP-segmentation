@@ -12,7 +12,7 @@ import numpy as np
 
 from experiments.train import CheckpointManager
 
-METRIC_CSV_RE = re.compile(r'predict_metrics_ep(\d+)\.csv$')
+METRIC_CSV_RE = re.compile(r'predict_metrics_ep(\d+)_s(\d+)\.csv$')
 
 
 class ModelReport:
@@ -75,27 +75,30 @@ class Report:
 		with open(os.path.join(run_dir, 'config.json')) as f:
 			run_config = json.load(f)
 		# a model's directory is shared across every run that ever trained
-		# that hash further, so history.json/predict_metrics_ep*.csv reflect
-		# the CURRENT (possibly later) state, not necessarily what existed
-		# when this particular run finished -- scope everything to the
-		# epoch this run actually reached
+		# that hash (and every seed) further, so history_s*.json/
+		# predict_metrics_ep*.csv reflect the CURRENT (possibly later) state,
+		# not necessarily what existed when this particular run finished --
+		# scope everything to this run's own seed and the epoch it reached
 		final_target = run_config['epochs_per_checkpoint'] * run_config['checkpoints']
+		seed = run_config['seed']
 
 		checkpoint_mgr = CheckpointManager(out_root)
 		model_reports = []
 		for entry in manifest['models']:
 			model_dir = os.path.join(out_root, entry['output_dir'])
 
-			with open(os.path.join(model_dir, 'history.json')) as f:
+			with open(os.path.join(model_dir, f'history_s{seed}.json')) as f:
 				history = json.load(f)
 
-			ckpt_entry = checkpoint_mgr.find_at_or_before(entry['hash'], final_target)
+			ckpt_entry = checkpoint_mgr.find_at_or_before(entry['hash'], seed, final_target)
 			if ckpt_entry is not None:
 				scoped = checkpoint_mgr.read_history(ckpt_entry)
 				history = {**history, 'train_loss': scoped['train_loss'], 'test_loss': scoped['test_loss'], 'training_time_seconds': ckpt_entry['training_time_seconds']}
 
 			checkpoint_metrics = []
-			for path in sorted(glob.glob(os.path.join(model_dir, 'predict_metrics_ep*.csv'))):
+			# model_dir can hold other seeds' metrics too now (seeds of the
+			# same architecture share a dir) -- only this run's own seed
+			for path in sorted(glob.glob(os.path.join(model_dir, f'predict_metrics_ep*_s{seed}.csv'))):
 				epoch = int(METRIC_CSV_RE.search(path).group(1))
 				if epoch <= final_target:
 					checkpoint_metrics.append((epoch, cls.read_csv_rows(path)))

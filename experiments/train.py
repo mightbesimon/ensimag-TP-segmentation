@@ -5,14 +5,11 @@ import hashlib
 import json
 import os
 import time
-from datetime import datetime
 
 import torch
 from torch.nn import BCEWithLogitsLoss
 from torch.optim import Adam
 from tqdm import tqdm
-
-TIMESTAMP_FORMAT = '%y%m%dT%H%M%S'
 
 
 class CheckpointManager:
@@ -31,19 +28,23 @@ class CheckpointManager:
 		with open(self.index_path, 'w') as f:
 			json.dump(index, f, indent='\t')
 
-	def list_checkpoints(self, model_hash):
-		entry = self._read_index().get(model_hash)
-		return sorted(entry['checkpoints'], key=lambda c: c['epoch']) if entry else []
+	def list_checkpoints(self, model_hash, seed):
+		# a hash identifies an architecture, not an experiment -- different
+		# seeds of the same architecture share one hash, so checkpoints must
+		# also be filtered by seed or two seeds' epoch-20 checkpoints would
+		# collide when callers index this list by epoch alone
+		checkpoints = self._read_index().get(model_hash, [])
+		return sorted((c for c in checkpoints if c['seed'] == seed), key=lambda c: c['epoch'])
 
-	def find_latest(self, model_hash):
-		checkpoints = self.list_checkpoints(model_hash)
+	def find_latest(self, model_hash, seed):
+		checkpoints = self.list_checkpoints(model_hash, seed)
 		return checkpoints[-1] if checkpoints else None
 
-	def find_at_or_before(self, model_hash, epoch):
+	def find_at_or_before(self, model_hash, seed, epoch):
 		# for replotting a past run as it actually was: that run may not be
 		# the one that trained the latest checkpoint for this hash, so
 		# "latest overall" is wrong -- this is "latest as of that run"
-		candidates = [c for c in self.list_checkpoints(model_hash) if c['epoch'] <= epoch]
+		candidates = [c for c in self.list_checkpoints(model_hash, seed) if c['epoch'] <= epoch]
 		return candidates[-1] if candidates else None
 
 	def load_into(self, model, checkpoint_entry):
@@ -58,8 +59,7 @@ class CheckpointManager:
 		return torch.load(checkpoint_entry['path'], weights_only=False)['history']
 
 	def save(self, model, run_spec, model_hash, epoch, training_time_seconds, history, seed):
-		timestamp = datetime.now().strftime(TIMESTAMP_FORMAT)
-		filename = f'{run_spec.model_key}_{model_hash}_ep{epoch}_{timestamp}.pth'
+		filename = f'{run_spec.model_key}_{run_spec.arch_label}_ep{epoch}_s{seed}.pth'
 		path = os.path.join(self.dir, filename)
 
 		torch.save({
@@ -68,19 +68,15 @@ class CheckpointManager:
 			'history': history,
 		}, path)
 
+		# index[model_hash] is just the list of checkpoints for that
+		# architecture -- model_key/class_name/enc_channels/dec_channels
+		# aren't duplicated here since they're never read back from this
+		# file; the model's own config.json is the single source of truth
 		index = self._read_index()
-		entry = index.setdefault(model_hash, {
-			'model_key': run_spec.model_key,
-			'class_name': run_spec.class_name,
-			'enc_channels': list(run_spec.enc_channels),
-			'dec_channels': list(run_spec.dec_channels),
-			'seed': seed,
-			'checkpoints': [],
-		})
-		entry['checkpoints'].append({
+		index.setdefault(model_hash, []).append({
 			'epoch': epoch,
+			'seed': seed,
 			'path': path,
-			'timestamp': timestamp,
 			'training_time_seconds': training_time_seconds,
 		})
 		self._write_index(index)
@@ -100,17 +96,26 @@ class TrainingManager:
 		self.test_steps = max(1, len(test_loader.dataset) // test_loader.batch_size)
 
 	@staticmethod
-	def hash(model, seed):
+	def architecture_signature(model):
 		# identifies a model by what it actually is, not by the config
-		# numbers used to build it: a checkpoint is only safe to resume from
-		# if the current code would produce a state_dict with the exact same
-		# parameter names and shapes. catches cases like adding a final head
-		# conv to HourGlass, where the enc/dec tuples stay the same but the
-		# architecture doesn't. seed is included too -- it changes the initial
-		# weights and the train/test split, so a different seed is a different
-		# (incomparable) experiment, not a resume of this one.
-		signature = sorted((name, tuple(p.shape)) for name, p in model.state_dict().items())
-		return hashlib.sha256(repr((seed, signature)).encode('utf-8')).hexdigest()[:8]
+		# numbers used to build it. two parts:
+		#  - 'parameters': every learnable weight's name + shape. catches
+		#    cases like adding a final head conv to HourGlass, where the
+		#    enc/dec tuples stay the same but the architecture doesn't.
+		#  - 'modules': the full declared module tree (str(model), which
+		#    PyTorch builds from each submodule's repr). parameters alone
+		#    are blind to parameterless structural changes -- e.g. inserting
+		#    a ReLU into Block adds no weights, so it wouldn't change the
+		#    parameter signature at all, but it does change this.
+		# neither part can see a pure forward()-logic change that touches no
+		# declared submodule (e.g. reordering ops without adding/removing
+		# layers) -- this is a strong signal, not an absolute guarantee.
+		parameters = sorted((name, tuple(p.shape)) for name, p in model.state_dict().items())
+		return {'modules': str(model), 'parameters': parameters}
+
+	@staticmethod
+	def hash_signature(signature):
+		return hashlib.sha256(repr(signature).encode('utf-8')).hexdigest()[:8]
 
 	def train(self, epochs, history, label=''):
 		start_time = time.time()

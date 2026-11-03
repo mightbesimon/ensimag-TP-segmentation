@@ -48,34 +48,51 @@ class ExperimentRunner:
 		self.out_root = cfg.output_root
 		self.checkpoint_mgr = CheckpointManager(self.out_root)
 
-	def _model_dir(self, run_spec, model_hash):
-		return os.path.join(self.out_root, f'{run_spec.class_name}_{model_hash}')
+	def _model_dir(self, run_spec):
+		return os.path.join(self.out_root, f'{run_spec.class_name}_{run_spec.arch_label}')
 
 	def _prepare(self, run_spec):
 		model = run_spec.build_model().to(self.device)
-		model_hash = TrainingManager.hash(model, self.cfg.seed)
-		model_dir = self._model_dir(run_spec, model_hash)
+		signature = TrainingManager.architecture_signature(model)
+		model_hash = TrainingManager.hash_signature(signature)
+		model_dir = self._model_dir(run_spec)
 		os.makedirs(model_dir, exist_ok=True)
 
 		arch_config_path = os.path.join(model_dir, 'config.json')
-		if not os.path.exists(arch_config_path):
+		if os.path.exists(arch_config_path):
+			with open(arch_config_path) as f:
+				existing = json.load(f)
+			if existing['hash'] != model_hash:
+				# arch_label (e.g. ft16_d3) is cosmetic and not guaranteed
+				# unique -- this dir was last written by a structurally
+				# different model (e.g. a Block edit that didn't change
+				# enc/dec channels at all), so continuing would silently
+				# mix or overwrite checkpoints from two incompatible models
+				raise RuntimeError(
+					f'{model_dir} holds a different architecture than the current code builds '
+					f'(on-disk hash {existing["hash"]}, current hash {model_hash}) -- the model/network.py '
+					f'code changed without changing enc_channels/dec_channels. Move or delete {model_dir} '
+					f'(and its entry in checkpoints/index.json) before continuing.'
+				)
+		else:
 			with open(arch_config_path, 'w') as f:
 				json.dump({
 					'model_key': run_spec.model_key, 'class_name': run_spec.class_name,
 					'enc_channels': list(run_spec.enc_channels), 'dec_channels': list(run_spec.dec_channels),
-					'hash': model_hash, 'seed': self.cfg.seed,
+					'hash': model_hash, 'architecture_signature': signature,
 				}, f, indent='\t')
 
-		latest = self.checkpoint_mgr.find_latest(model_hash)
+		latest = self.checkpoint_mgr.find_latest(model_hash, self.cfg.seed)
 		if latest is not None:
 			ckpt = self.checkpoint_mgr.load_into(model, latest)
-			print(f'[INFO] {run_spec.short_label}: resuming from epoch {latest["epoch"]} (hash {model_hash})')
+			print(f'[INFO] {run_spec.short_label}: resuming from epoch {latest["epoch"]} (hash {model_hash}, seed {self.cfg.seed})')
 			return ModelRun(run_spec, model, model_hash, model_dir, latest['epoch'], ckpt['history'], latest['training_time_seconds'])
 		return ModelRun(run_spec, model, model_hash, model_dir, 0, {'train_loss': [], 'test_loss': []}, 0.0)
 
 	def _train_and_eval(self, run, target_epochs, data, grid_plotter):
 		# train (whatever's left to reach each target) -> eval, per target
-		existing = {c['epoch']: c for c in self.checkpoint_mgr.list_checkpoints(run.model_hash)}
+		seed = self.cfg.seed
+		existing = {c['epoch']: c for c in self.checkpoint_mgr.list_checkpoints(run.model_hash, seed)}
 		trainer = None
 		checkpoints_out = []
 
@@ -94,13 +111,13 @@ class ExperimentRunner:
 
 				# a reused checkpoint's eval results can't have changed --
 				# its weights are frozen, so only render if they're missing
-				metrics_path = os.path.join(run.model_dir, f'predict_metrics_ep{run.current_epoch}.csv')
+				metrics_path = os.path.join(run.model_dir, f'predict_metrics_ep{run.current_epoch}_s{seed}.csv')
 				try:
 					results = Report.read_csv_rows(metrics_path)
 					print(f'[INFO] {run.run_spec.short_label}: epoch {run.current_epoch} already evaluated, reusing {metrics_path}')
 				except FileNotFoundError:
-					results = grid_plotter.render_grid(run.model, data.eval_images, run.model_dir, run.current_epoch, f'{run.run_spec.short_label} - epoch {run.current_epoch}')
-					# deliberately not touching training_curve/history.json
+					results = grid_plotter.render_grid(run.model, data.eval_images, run.model_dir, run.current_epoch, seed, f'{run.run_spec.short_label} - epoch {run.current_epoch} (seed {seed})')
+					# deliberately not touching training_curve/history_s*.json
 					# here: run.history is this checkpoint's frozen snapshot,
 					# which could be older/shorter than what's already saved
 					# there if this isn't the model's latest checkpoint
@@ -110,20 +127,20 @@ class ExperimentRunner:
 					trainer = TrainingManager(run.model, data.train_loader, data.test_loader, self.device, self.cfg.lr)
 				run.cumulative_time += trainer.train(target - run.current_epoch, run.history, label=run.run_spec.short_label)
 				run.current_epoch = target
-				self.checkpoint_mgr.save(run.model, run.run_spec, run.model_hash, target, run.cumulative_time, run.history, self.cfg.seed)
-				results = grid_plotter.render_grid(run.model, data.eval_images, run.model_dir, run.current_epoch, f'{run.run_spec.short_label} - epoch {run.current_epoch}')
-				grid_plotter.render_training_curve(run.history, run.model_dir, run.current_epoch, run.run_spec.short_label)
-				self._save_model_history(run)
+				self.checkpoint_mgr.save(run.model, run.run_spec, run.model_hash, target, run.cumulative_time, run.history, seed)
+				results = grid_plotter.render_grid(run.model, data.eval_images, run.model_dir, run.current_epoch, seed, f'{run.run_spec.short_label} - epoch {run.current_epoch} (seed {seed})')
+				grid_plotter.render_training_curve(run.history, run.model_dir, run.current_epoch, seed, run.run_spec.short_label)
+				self._save_model_history(run, seed)
 
 			checkpoints_out.append({'epoch': run.current_epoch, 'results': results})
 
 		return checkpoints_out
 
-	def _save_model_history(self, run):
+	def _save_model_history(self, run, seed):
 		run.history['num_params'] = sum(p.numel() for p in run.model.parameters())
 		run.history['training_time_seconds'] = run.cumulative_time
 		run.history['bottleneck_shape'] = getattr(run.model, 'bottleneck_shape', None)
-		with open(os.path.join(run.model_dir, 'history.json'), 'w') as f:
+		with open(os.path.join(run.model_dir, f'history_s{seed}.json'), 'w') as f:
 			json.dump(run.history, f, indent='\t')
 
 	@staticmethod
@@ -182,8 +199,8 @@ class ExperimentRunner:
 
 			print(f'[INFO] {run.run_spec.short_label}: targeting epochs {target_epochs}')
 			checkpoints_out = self._train_and_eval(run, target_epochs, data, grid_plotter)
-			Status.note_model(self.out_root, timestamp, run.run_spec, run.model_hash, checkpoints_out)
-			Status.write_run_status(run_dir, 'training', runs)
+			Status.note_model(self.out_root, timestamp, run.run_spec, run.model_hash, self.cfg.seed, checkpoints_out)
+			Status.write_run_status(run_dir, 'training', runs, self.cfg.seed)
 
 			if not checkpoints_out:
 				print(f'[WARN] {run.run_spec.short_label}: no checkpoints reached (hash {run.model_hash} already past every target), skipping from comparison')
@@ -202,19 +219,19 @@ class ExperimentRunner:
 			json.dump({'config': self.cfg.to_dict(), 'models': manifest_entries}, f, indent='\t')
 
 		Status.set_run_stage(self.out_root, timestamp, 'plotting')
-		Status.write_run_status(run_dir, 'plotting', runs)
+		Status.write_run_status(run_dir, 'plotting', runs, self.cfg.seed)
 		if len(all_results) > 1:
 			self._plot_comparison(run_dir, all_results, data, self.device, loss_fn)
 			print(f'[INFO] comparison written to {run_dir}')
 
 		Status.set_run_stage(self.out_root, timestamp, 'reporting')
-		Status.write_run_status(run_dir, 'reporting', runs)
+		Status.write_run_status(run_dir, 'reporting', runs, self.cfg.seed)
 		report = Report.load(self.out_root, timestamp)
 		report.save()
 		report.print()
 
 		Status.set_run_stage(self.out_root, timestamp, 'complete')
-		Status.write_run_status(run_dir, 'complete', runs)
+		Status.write_run_status(run_dir, 'complete', runs, self.cfg.seed)
 		Dashboard.build(self.out_root)
 
 		print(f'[INFO] experiment outputs written to {run_dir}')

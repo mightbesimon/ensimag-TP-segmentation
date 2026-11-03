@@ -23,7 +23,7 @@ class PredictGridPlotter:
 		self.device = device
 		self.loss_fn = loss_fn
 
-	def render_grid(self, model, eval_images, out_dir, epoch, label):
+	def render_grid(self, model, eval_images, out_dir, epoch, seed, label):
 		results = [
 			Evaluator.evaluate_image(model, path, self.device, self.loss_fn)
 			for path in tqdm(eval_images, desc=f'eval {label}', leave=False)
@@ -63,10 +63,10 @@ class PredictGridPlotter:
 		fig.suptitle(label)
 		fig.tight_layout()
 		os.makedirs(out_dir, exist_ok=True)
-		fig.savefig(os.path.join(out_dir, f'predict_grid_ep{epoch}.png'))
+		fig.savefig(os.path.join(out_dir, f'predict_grid_ep{epoch}_s{seed}.png'))
 		plt.close(fig)
 
-		metrics_path = os.path.join(out_dir, f'predict_metrics_ep{epoch}.csv')
+		metrics_path = os.path.join(out_dir, f'predict_metrics_ep{epoch}_s{seed}.csv')
 		with open(metrics_path, 'w', newline='') as f:
 			writer = csv.DictWriter(f, fieldnames=['name', 'bce', 'dice', 'iou'])
 			writer.writeheader()
@@ -75,17 +75,17 @@ class PredictGridPlotter:
 
 		return results
 
-	def render_training_curve(self, history, out_dir, epoch, label):
+	def render_training_curve(self, history, out_dir, epoch, seed, label):
 		plt.style.use('ggplot')
 		fig = plt.figure()
 		plt.plot(history['train_loss'], 'o', ls='-', ms=4, linewidth=2.0, label='train loss')
 		plt.plot(history['test_loss'], 'o', ls='-', ms=4, linewidth=2.0, label='test loss')
-		plt.title(f'{label} training loss')
+		plt.title(f'{label} training loss (seed {seed})')
 		plt.xlabel('epoch #')
 		plt.ylabel('loss')
 		plt.legend()
 		os.makedirs(out_dir, exist_ok=True)
-		fig.savefig(os.path.join(out_dir, f'training_curve_ep{epoch}.png'))
+		fig.savefig(os.path.join(out_dir, f'training_curve_ep{epoch}_s{seed}.png'))
 		plt.close(fig)
 
 

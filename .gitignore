@@ -1,3 +1,5 @@
 .idea/
 **/__pycache__/
 experiment_output/
+dashboard.html
+archive_*/

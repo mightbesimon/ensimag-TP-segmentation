@@ -13,9 +13,10 @@ data.py        DataManager -- seeding, dataloaders, the fixed seeded eval-image 
 eval.py        Evaluator -- given an already-built model and one image, runs it and computes
                bce/dice/iou. Does not build, train, persist, or plot anything.
 
-train.py       CheckpointManager -- checkpoints/index.json, save/load/find_latest.
-               TrainingManager -- builds on a model handed to it, hashes it (by actual
-               state_dict signature, not config numbers -- see hash() docstring), trains it.
+train.py       CheckpointManager -- checkpoints/index.json, save/load/find_latest (per
+               hash AND seed). TrainingManager -- builds on a model handed to it, hashes
+               it (by actual state_dict signature + declared module tree, not config
+               numbers -- see architecture_signature() docstring), trains it.
                "create and store the model."
 
 plots.py       PredictGridPlotter -- per-checkpoint grid (image/gt/pred/prob, best+worst
@@ -44,6 +45,7 @@ replot.py      Replotter -- regenerates a past run's comparison figures + report
 ```
 python3 experiment.py                                 # run everything with experiment_config.json's defaults
 python3 experiment.py --models hourglass unet          # only these models (fastest-first order, not sorted)
+python3 experiment.py --models hourglass --features 8 16 32 --depths 2 3 4  # sweep all 9 combos
 python3 experiment.py --epochs-per-checkpoint 10 --checkpoints 3   # target epochs = [10, 20, 30]
 python3 experiment.py --config myconfig.json            # load a different saved config (see below)
 python3 experiment.py --config myconfig.json --lr 0.01  # flags still override whatever the file set
@@ -62,6 +64,8 @@ on the command line overrides whatever that file says.
 | flag | meaning | default (from `experiment_config.json`) |
 |---|---|---|
 | `--models` | which model keys to train (space-separated) | `simpleconv hourglass unet` |
+| `--features` | feature-count values to sweep, applied to every model in `--models` (grid with `--depths`); overrides any JSON `sweeps` | none |
+| `--depths` | depth values to sweep, applied to every model in `--models` (grid with `--features`); overrides any JSON `sweeps` | none |
 | `--epochs-per-checkpoint` | epochs trained per checkpoint step | `20` |
 | `--checkpoints` | how many checkpoint steps = target epochs; e.g. `3` with the above → targets `[20, 40, 60]` | `1` |
 | `--batch-size` | DataLoader batch size | `256` |
@@ -73,9 +77,15 @@ on the command line overrides whatever that file says.
 | `--report` | print a report instead of running; bare flag = latest run, or pass a `<timestamp>` for a specific past run | none |
 | `--replot` | regenerate a past run's comparison figures + report instead of running, entirely from what's already on disk (no training); bare flag = latest run, or pass a `<timestamp>` | none |
 
-**There is no `--features`/`--depths` flag.** Varying feature count or depth is only done
-through `sweeps` in a `--config` JSON file — not a flat flag, by design, since it's a list of
-per-model entries rather than a single value. To sweep architectures, write a file and pass it:
+`--features`/`--depths` cover the common case directly from the CLI, e.g.
+`--models hourglass --features 8 16 32 --depths 2 3 4` sweeps all 9 combinations for
+`hourglass` (via the same symmetric doubling scheme each class's own defaults follow). They
+apply the *same* grid to every model named in `--models`, in addition to (not instead of)
+`--models` -- unlike the JSON form below, `--models` still picks which architectures train.
+
+Anything more elaborate -- a different grid per model, or an exact custom `enc_channels`/
+`dec_channels` shape the features/depths formula can't express -- still needs `sweeps` in a
+`--config` JSON file:
 
 ```json
 // hourglass_sweep.json
@@ -91,11 +101,10 @@ per-model entries rather than a single value. To sweep architectures, write a fi
 python3 experiment.py --config hourglass_sweep.json
 ```
 Each sweep entry is either `{"model", "features", "depths"}` (expanded into every
-features × depths combination, via the same symmetric doubling scheme each class's own
-defaults follow) or `{"model", "enc_channels", "dec_channels"}` (used exactly as given, for a
-custom shape the features/depths formula can't express). When `sweeps` is non-empty it replaces
-`--models` entirely for that run — every architecture trained comes from the sweep list, and
-`--models` on the command line is ignored.
+features × depths combination) or `{"model", "enc_channels", "dec_channels"}` (used exactly
+as given). When `sweeps` is non-empty -- whether from a JSON `--config` file or because
+`--features`/`--depths` was passed -- it replaces `--models`-driven default architectures
+entirely for that run: every architecture trained comes from the sweep list.
 
 ## Pipeline
 
@@ -106,35 +115,51 @@ resumed run:  train (whatever's left) -> eval -> plot -> report
 
 `train` and `eval` are interleaved *per target epoch*, not run as separate passes: for
 each target epoch (`epochs_per_checkpoint * [1..checkpoints]`, e.g. `[20, 40, 60]`),
-`ExperimentRunner` either reuses an existing checkpoint at that exact epoch, or trains just
-the gap from wherever the model currently is, then immediately runs `eval` (the predict
-grid) and checkpoints. This is also how resuming works: every model is identified by
-`TrainingManager.hash()` (the actual parameter-shape signature, not the enc/dec numbers you
-passed in -- so a checkpoint is never loaded into incompatible code -- plus the seed, since
-a different seed is a different experiment, not a resume of this one), and
-`CheckpointManager` looks up the latest checkpoint for that hash before training a single
-epoch. Interrupting a run (lost SLURM connection, ctrl-C) and re-running the same command
-picks up exactly where it left off, model by model.
+`ExperimentRunner` either reuses an existing checkpoint at that exact epoch+seed, or trains
+just the gap from wherever the model currently is, then immediately runs `eval` (the
+predict grid) and checkpoints. This is also how resuming works: every model's
+*architecture* is identified by `TrainingManager.architecture_signature()` -- both the
+parameter name+shape signature AND the full declared module tree (`str(model)`), so a
+checkpoint is never loaded into incompatible code, and a structural edit with no parameter
+shape change (e.g. adding a ReLU inside `Block`) still invalidates it -- hashed into
+`TrainingManager.hash_signature()`. `CheckpointManager` looks up the latest checkpoint for
+that hash *and seed* before training a single epoch (different seeds of the same
+architecture are different, non-resumable-into-each-other experiments, but do share the same
+directory and checkpoint index entry). Interrupting a run (lost SLURM connection, ctrl-C)
+and re-running the same command picks up exactly where it left off, model by model.
+
+The architecture hash itself never appears in directory or file names, since it isn't
+readable at a glance -- instead they use `arch_label` (e.g. `ft16_d3` for features=16,
+depth=3), which is
+human-readable but *not* guaranteed unique across genuinely different architectures. To
+protect against that, `ExperimentRunner._prepare` fails loudly if a model directory's stored
+`config.json` hash doesn't match what the current code just built for that same `arch_label`
+-- that's your signal to move/delete the stale directory (and its `checkpoints/index.json`
+entry) rather than silently mixing two incompatible models' checkpoints together.
 
 ## experiment_output/
 
 ```
 experiment_output/
-  status.json                          # global: every model hash ever trained (architecture,
-                                        # best metrics seen, max epoch, which runs used it) and
-                                        # every run (its stage, which hashes it touched)
+  status.json                          # global: every (model hash, seed) ever trained
+                                        # (architecture, best metrics seen, max epoch, which
+                                        # runs used it) and every run (its stage, which
+                                        # hash+seed combos it touched)
   checkpoints/
-    index.json                         # hash -> architecture + list of {epoch, path,
-                                        # timestamp, training_time_seconds} -- the actual
-                                        # resumability source of truth
-    hourglass_<hash>_ep20_<timestamp>.pth
-  SimpleConv_<hash>/                    # one directory per model hash, shared across every
-    config.json                        # run that ever touches it (not nested under a
-    history.json                       # timestamp -- that's what makes resuming across
-    training_curve_ep20.png            # separate invocations possible)
-    predict_grid_ep20.png
-    predict_metrics_ep20.csv
-  HourGlass_<hash>/ ...   UNet_<hash>/ ...
+    index.json                         # hash -> list of {epoch, seed, path, training_time_
+                                        # seconds} -- the actual resumability source of truth
+                                        # (filtered by seed, not just hash). architecture info
+                                        # (enc/dec channels etc) is NOT duplicated here -- the
+                                        # model's own config.json is the single source of truth
+    simpleconv_ft16_d3_ep20_s22.pth
+  SimpleConv_ft16_d3/                   # one directory per architecture (NOT per hash --
+    config.json                        # see arch_label note above), shared across every run
+    history_s22.json                   # and every seed that ever touches it
+    history_s7.json
+    training_curve_ep20_s22.png
+    predict_grid_ep20_s22.png
+    predict_metrics_ep20_s22.csv
+  HourGlass_ft32_d4/ ...   UNet_ft24_d2/ ...
   <timestamp>/                          # one directory per experiment.py invocation
     config.json                        # the full effective config used (post CLI overrides)
     manifest.json                      # which model hashes this run compared

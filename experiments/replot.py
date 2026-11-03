@@ -16,23 +16,24 @@ from experiments.report import Report
 from experiments.runner import ExperimentRunner, ModelResult
 from experiments.train import CheckpointManager
 
-METRIC_CSV_RE = re.compile(r'predict_metrics_ep(\d+)\.csv$')
+METRIC_CSV_RE = re.compile(r'predict_metrics_ep(\d+)_s(\d+)\.csv$')
 
 
 class Replotter:
 	@staticmethod
-	def _rebuild_model_result(out_root, entry, device, final_target):
+	def _rebuild_model_result(out_root, entry, device, seed, final_target):
 		# rebuilds a ModelResult entirely from what a previous run saved to
 		# disk, scoped to the epoch THAT run reached -- a model's directory
-		# is shared across every run that ever trained that hash further, so
-		# naively reading "the latest checkpoint" or "every predict_metrics
-		# csv" would include epochs trained by later runs too
+		# is shared across every run that ever trained that hash further (and
+		# across every seed of that architecture too), so naively reading
+		# "the latest checkpoint" or "every predict_metrics csv" would
+		# include epochs/seeds trained by other runs too
 		model_dir = os.path.join(out_root, entry['output_dir'])
 		checkpoint_mgr = CheckpointManager(out_root)
-		ckpt_entry = checkpoint_mgr.find_at_or_before(entry['hash'], final_target)
+		ckpt_entry = checkpoint_mgr.find_at_or_before(entry['hash'], seed, final_target)
 
 		checkpoints = []
-		for path in sorted(glob.glob(os.path.join(model_dir, 'predict_metrics_ep*.csv'))):
+		for path in sorted(glob.glob(os.path.join(model_dir, f'predict_metrics_ep*_s{seed}.csv'))):
 			epoch = int(METRIC_CSV_RE.search(path).group(1))
 			if epoch <= final_target:
 				checkpoints.append({'epoch': epoch, 'results': Report.read_csv_rows(path)})
@@ -60,9 +61,10 @@ class Replotter:
 		with open(os.path.join(run_dir, 'config.json')) as f:
 			run_config = json.load(f)
 		final_target = run_config['epochs_per_checkpoint'] * run_config['checkpoints']
+		seed = run_config['seed']
 
 		device = model_config.DEVICE
-		all_results = [cls._rebuild_model_result(out_root, entry, device, final_target) for entry in manifest['models']]
+		all_results = [cls._rebuild_model_result(out_root, entry, device, seed, final_target) for entry in manifest['models']]
 		if len(all_results) <= 1:
 			print(f'[WARN] {run_dir} has only {len(all_results)} model(s) -- comparison plots need at least 2, nothing to replot')
 			return run_dir
