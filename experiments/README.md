@@ -110,7 +110,8 @@ each target epoch (`epochs_per_checkpoint * [1..checkpoints]`, e.g. `[20, 40, 60
 the gap from wherever the model currently is, then immediately runs `eval` (the predict
 grid) and checkpoints. This is also how resuming works: every model is identified by
 `TrainingManager.hash()` (the actual parameter-shape signature, not the enc/dec numbers you
-passed in -- so a checkpoint is never loaded into incompatible code), and
+passed in -- so a checkpoint is never loaded into incompatible code -- plus the seed, since
+a different seed is a different experiment, not a resume of this one), and
 `CheckpointManager` looks up the latest checkpoint for that hash before training a single
 epoch. Interrupting a run (lost SLURM connection, ctrl-C) and re-running the same command
 picks up exactly where it left off, model by model.

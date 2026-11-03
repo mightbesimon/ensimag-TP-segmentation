@@ -57,7 +57,7 @@ class CheckpointManager:
 		# object needed) -- for Report, which doesn't build models
 		return torch.load(checkpoint_entry['path'], weights_only=False)['history']
 
-	def save(self, model, run_spec, model_hash, epoch, training_time_seconds, history):
+	def save(self, model, run_spec, model_hash, epoch, training_time_seconds, history, seed):
 		timestamp = datetime.now().strftime(TIMESTAMP_FORMAT)
 		filename = f'{run_spec.model_key}_{model_hash}_ep{epoch}_{timestamp}.pth'
 		path = os.path.join(self.dir, filename)
@@ -74,6 +74,7 @@ class CheckpointManager:
 			'class_name': run_spec.class_name,
 			'enc_channels': list(run_spec.enc_channels),
 			'dec_channels': list(run_spec.dec_channels),
+			'seed': seed,
 			'checkpoints': [],
 		})
 		entry['checkpoints'].append({
@@ -99,15 +100,17 @@ class TrainingManager:
 		self.test_steps = max(1, len(test_loader.dataset) // test_loader.batch_size)
 
 	@staticmethod
-	def hash(model):
+	def hash(model, seed):
 		# identifies a model by what it actually is, not by the config
 		# numbers used to build it: a checkpoint is only safe to resume from
 		# if the current code would produce a state_dict with the exact same
 		# parameter names and shapes. catches cases like adding a final head
 		# conv to HourGlass, where the enc/dec tuples stay the same but the
-		# architecture doesn't.
+		# architecture doesn't. seed is included too -- it changes the initial
+		# weights and the train/test split, so a different seed is a different
+		# (incomparable) experiment, not a resume of this one.
 		signature = sorted((name, tuple(p.shape)) for name, p in model.state_dict().items())
-		return hashlib.sha256(repr(signature).encode('utf-8')).hexdigest()[:8]
+		return hashlib.sha256(repr((seed, signature)).encode('utf-8')).hexdigest()[:8]
 
 	def train(self, epochs, history, label=''):
 		start_time = time.time()

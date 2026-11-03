@@ -53,7 +53,7 @@ class ExperimentRunner:
 
 	def _prepare(self, run_spec):
 		model = run_spec.build_model().to(self.device)
-		model_hash = TrainingManager.hash(model)
+		model_hash = TrainingManager.hash(model, self.cfg.seed)
 		model_dir = self._model_dir(run_spec, model_hash)
 		os.makedirs(model_dir, exist_ok=True)
 
@@ -63,7 +63,7 @@ class ExperimentRunner:
 				json.dump({
 					'model_key': run_spec.model_key, 'class_name': run_spec.class_name,
 					'enc_channels': list(run_spec.enc_channels), 'dec_channels': list(run_spec.dec_channels),
-					'hash': model_hash,
+					'hash': model_hash, 'seed': self.cfg.seed,
 				}, f, indent='\t')
 
 		latest = self.checkpoint_mgr.find_latest(model_hash)
@@ -110,7 +110,7 @@ class ExperimentRunner:
 					trainer = TrainingManager(run.model, data.train_loader, data.test_loader, self.device, self.cfg.lr)
 				run.cumulative_time += trainer.train(target - run.current_epoch, run.history, label=run.run_spec.short_label)
 				run.current_epoch = target
-				self.checkpoint_mgr.save(run.model, run.run_spec, run.model_hash, target, run.cumulative_time, run.history)
+				self.checkpoint_mgr.save(run.model, run.run_spec, run.model_hash, target, run.cumulative_time, run.history, self.cfg.seed)
 				results = grid_plotter.render_grid(run.model, data.eval_images, run.model_dir, run.current_epoch, f'{run.run_spec.short_label} - epoch {run.current_epoch}')
 				grid_plotter.render_training_curve(run.history, run.model_dir, run.current_epoch, run.run_spec.short_label)
 				self._save_model_history(run)
