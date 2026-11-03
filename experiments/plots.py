@@ -3,6 +3,8 @@
 import csv
 import os
 
+import matplotlib
+matplotlib.use('Agg')  # headless: skip GUI-backend auto-detection (Qt/Tk), which breaks on display-less compute nodes
 import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm

@@ -15,6 +15,8 @@ import os
 import random
 
 import cv2
+import matplotlib
+matplotlib.use('Agg')  # headless: skip GUI-backend auto-detection (Qt/Tk), which breaks on display-less compute nodes
 import matplotlib.pyplot as plt
 import numpy as np
 
