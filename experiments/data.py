@@ -23,7 +23,7 @@ class DataManager:
 
 		self.test_images = None
 		self.eval_images = None
-		self._train_images = None
+		self.train_images = None
 		self._train_masks = None
 		self._test_masks = None
 		self._train_loader = None
@@ -48,10 +48,10 @@ class DataManager:
 		mask_paths = sorted(list(paths.list_images(config.MASKS_PATH)))
 
 		split = train_test_split(image_paths, mask_paths, test_size=config.TEST_SPLIT, random_state=self.seed)
-		(self._train_images, self.test_images) = split[:2]
+		(self.train_images, self.test_images) = split[:2]
 		(self._train_masks, self._test_masks) = split[2:]
-		Log.info(f'found {len(self._train_images)} examples in the training set...')
-		Log.info(f'found {len(self.test_images)} examples in the test set...')
+		Log.info(f'found {len(self.train_images)} examples in the training set (seed {self.seed})...')
+		Log.info(f'found {len(self.test_images)} examples in the test set (seed {self.seed})...')
 
 		# same images get evaluated at every checkpoint and for every model,
 		# so the grids/metrics/distributions are actually comparable
@@ -67,7 +67,7 @@ class DataManager:
 			transforms.Resize((config.INPUT_IMAGE_HEIGHT, config.INPUT_IMAGE_WIDTH)),
 			transforms.ToTensor(),
 		])
-		train_ds = SegmentationDataset(imagePaths=self._train_images, maskPaths=self._train_masks, transforms=tfms)
+		train_ds = SegmentationDataset(imagePaths=self.train_images, maskPaths=self._train_masks, transforms=tfms)
 		test_ds = SegmentationDataset(imagePaths=self.test_images, maskPaths=self._test_masks, transforms=tfms)
 
 		self._train_loader = DataLoader(train_ds,

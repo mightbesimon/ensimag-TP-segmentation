@@ -146,6 +146,9 @@ class ExperimentRunner:
 
 	@staticmethod
 	def _plot_comparison(run_dir, all_results, data, device, loss_fn):
+		if not all_results:
+			Log.warn(f'{run_dir}: no models to plot, skipping')
+			return
 		plots = ComparisonPlots(run_dir)
 		plot_steps = [
 			('training curves', lambda: plots.training_curves(all_results)),
@@ -165,9 +168,9 @@ class ExperimentRunner:
 		run_specs = self.cfg.run_specs()
 
 		Log.info(f'config: {json.dumps(self.cfg.to_dict())}')
-		Log.info(f'target epochs: {target_epochs}')
+		Log.info(f'target epochs: {target_epochs} (seed {self.cfg.seed})')
 		for spec in run_specs:
-			Log.info(f'will train: {spec.short_label}  enc={spec.enc_channels} dec={spec.dec_channels}')
+			Log.info(f'will train: {spec.short_label}  enc={spec.enc_channels} dec={spec.dec_channels} (seed {self.cfg.seed})')
 
 		DataManager.set_seed(self.cfg.seed)
 		data = DataManager(self.cfg.batch_size, self.cfg.seed, self.cfg.num_eval_images).build()
@@ -185,6 +188,15 @@ class ExperimentRunner:
 		with open(os.path.join(run_dir, 'config.json'), 'w') as f:
 			json.dump(config_to_save, f, indent='\t')
 
+		# the train/test split itself doesn't change epoch to epoch (every
+		# epoch sees the same two sets in full, just reshuffled within
+		# train); recorded here, once per run, as the fixed reference for
+		# "what images could this epoch's loss even be reacting to"
+		with open(os.path.join(run_dir, 'train_images.txt'), 'w') as f:
+			f.write('\n'.join(data.train_images))
+		with open(os.path.join(run_dir, 'test_images.txt'), 'w') as f:
+			f.write('\n'.join(data.test_images))
+
 		# build+train one model fully before touching the next: nn.Module
 		# init and DataLoader shuffling both draw from the global RNG, so
 		# building every model upfront would make each model's result
@@ -198,13 +210,13 @@ class ExperimentRunner:
 			run = self._prepare(spec)
 			runs.append(run)
 
-			Log.info(f'{run.run_spec.short_label}: targeting epochs {target_epochs}')
+			Log.info(f'{run.run_spec.short_label}: targeting epochs {target_epochs} (seed {self.cfg.seed})')
 			checkpoints_out = self._train_and_eval(run, target_epochs, data, grid_plotter)
 			Status.note_model(self.out_root, timestamp, run.run_spec, run.model_hash, self.cfg.seed, checkpoints_out)
 			Status.write_run_status(run_dir, 'training', runs, self.cfg.seed)
 
 			if not checkpoints_out:
-				Log.warn(f'{run.run_spec.short_label}: no checkpoints reached (hash {run.model_hash} already past every target), skipping from comparison')
+				Log.warn(f'{run.run_spec.short_label}: no checkpoints reached (hash {run.model_hash}, seed {self.cfg.seed} already past every target), skipping from comparison')
 				continue
 
 			result = ModelResult(run.run_spec.short_label, run.model, run.run_spec, run.model_hash, run.history, run.history.get('num_params', 0), run.cumulative_time)
@@ -221,9 +233,8 @@ class ExperimentRunner:
 
 		Status.set_run_stage(self.out_root, timestamp, 'plotting')
 		Status.write_run_status(run_dir, 'plotting', runs, self.cfg.seed)
-		if len(all_results) > 1:
-			self._plot_comparison(run_dir, all_results, data, self.device, loss_fn)
-			Log.info(f'comparison written to {run_dir}')
+		self._plot_comparison(run_dir, all_results, data, self.device, loss_fn)
+		Log.info(f'plots written to {run_dir} (seed {self.cfg.seed})')
 
 		Status.set_run_stage(self.out_root, timestamp, 'reporting')
 		Status.write_run_status(run_dir, 'reporting', runs, self.cfg.seed)
@@ -235,5 +246,5 @@ class ExperimentRunner:
 		Status.write_run_status(run_dir, 'complete', runs, self.cfg.seed)
 		Dashboard.build(self.out_root)
 
-		Log.info(f'experiment outputs written to {run_dir}')
+		Log.info(f'experiment outputs written to {run_dir} (seed {self.cfg.seed})')
 		return run_dir

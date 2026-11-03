@@ -168,6 +168,12 @@ experiment_output/
     manifest.json                      # which model hashes this run compared
     status.json                        # this run's own pipeline progress (training ->
                                         # plotting -> reporting -> complete)
+    train_images.txt  test_images.txt  # the full seeded split, written once -- every model
+                                        # in this run sees these same two sets, every epoch
+                                        # (shuffle only reorders train within an epoch, it
+                                        # never drops/swaps images), so this is the complete
+                                        # answer to "what images could this epoch's loss
+                                        # even be reacting to", not just a per-epoch snapshot
     training_curves.png  generalization_gap.png  final_metrics_bar.png
     loss_distribution_over_epochs.png  qualitative_grid.png  overlay_grid.png
     summary_table.png  summary.csv
@@ -177,6 +183,9 @@ experiment_output/
                                         # other plots above so it gets its own progress bar
     report.txt
 ```
+
+These plots (and the video) are written even for a single model -- they're not only a
+cross-model comparison, each is still a useful look at one model's own progression.
 
 `status.json` (global) vs `checkpoints/index.json` vs `<timestamp>/status.json` -- three
 different scopes, not duplicates of each other:
