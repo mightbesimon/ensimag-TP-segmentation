@@ -1,9 +1,7 @@
 # layered config: experiment_config.json (project root) -> optional --config
-# file -> explicit CLI flags, each layer overriding the previous. --features/
-# --depths cover the common single-grid sweep case directly from the CLI;
-# anything more elaborate (per-model sweeps, exact enc/dec channel lists)
-# still needs the JSON sweeps config -- there's no clean flat-flag way to
-# express that.
+# file -> explicit CLI flags, each layer overriding the previous. features/
+# depths (lists, from either layer) sweep the full features x depths grid
+# via make_channels, applied to every model in `models`.
 
 import argparse
 import inspect
@@ -65,6 +63,8 @@ class RunSpec:
 class ExperimentConfig:
 	HARD_DEFAULTS = {
 		'models': MODEL_REGISTRY.keys(),
+		'features': None,
+		'depths': None,
 		'epochs_per_checkpoint': model_config.NUM_EPOCHS,
 		'checkpoints': 1,
 		'batch_size': model_config.BATCH_SIZE,
@@ -72,7 +72,6 @@ class ExperimentConfig:
 		'num_eval_images': 10,
 		'seed': 22,
 		'output_root': 'experiment_output',
-		'sweeps': [],
 	}
 
 	def __init__(self, values, report_timestamp=None, replot_timestamp=None):
@@ -107,30 +106,21 @@ class ExperimentConfig:
 	def default_run_specs(model_keys):
 		return [RunSpec(key, *ExperimentConfig.default_channels(key)) for key in model_keys]
 
-	@staticmethod
-	def expand_sweep(sweep_defs):
-		# sweep_defs: list of either
-		#   {'model': key, 'features': [...], 'depths': [...]}            (grid, via make_channels)
-		#   {'model': key, 'enc_channels': [...], 'dec_channels': [...]}  (exact, bypasses make_channels)
+	def run_specs(self):
+		features, depths = self.values['features'], self.values['depths']
+		if features is None and depths is None:
+			return self.default_run_specs(self.values['models'])
+
 		specs = []
-		for entry in sweep_defs:
-			key = entry['model']
-			if 'enc_channels' in entry and 'dec_channels' in entry:
-				specs.append(RunSpec(key, tuple(entry['enc_channels']), tuple(entry['dec_channels'])))
-				continue
-			default_enc, default_dec = ExperimentConfig.default_channels(key)
-			features_list = entry.get('features', [default_enc[1]])
-			depths_list = entry.get('depths', [len(default_enc) - 1])
+		for key in self.values['models']:
+			default_enc, _ = self.default_channels(key)
+			features_list = features if features is not None else [default_enc[1]]
+			depths_list = depths if depths is not None else [len(default_enc) - 1]
 			for num_features in features_list:
 				for depth in depths_list:
-					enc, dec = ExperimentConfig.make_channels(num_features, depth)
+					enc, dec = self.make_channels(num_features, depth)
 					specs.append(RunSpec(key, enc, dec))
 		return specs
-
-	def run_specs(self):
-		if self.values['sweeps']:
-			return self.expand_sweep(self.values['sweeps'])
-		return self.default_run_specs(self.values['models'])
 
 	def target_epochs(self):
 		# e.g. [20, 40, 60] -- every run spec is driven to the same set of
@@ -156,12 +146,12 @@ class ExperimentConfig:
 				base.update(json.load(f))
 
 		parser = argparse.ArgumentParser(description='run the full train/eval/compare pipeline for one or more models')
-		parser.add_argument('--config', default=None, help='JSON file of defaults/sweeps; explicit flags below still override it')
+		parser.add_argument('--config', default=None, help='JSON file of these same keys; explicit flags below still override it')
 		parser.add_argument('--report', nargs='?', const='latest', default=None, help='print a report instead of running (optionally a specific run timestamp)')
 		parser.add_argument('--replot', nargs='?', const='latest', default=None, help='regenerate comparison plots/report for a past run instead of running (optionally a specific run timestamp)')
 		parser.add_argument('--models', nargs='+', choices=MODEL_REGISTRY.keys(), default=base['models'])
-		parser.add_argument('--features', type=int, nargs='+', default=None, help='feature-count values to sweep, applied to every selected model (grid with --depths via make_channels); overrides any JSON sweeps config')
-		parser.add_argument('--depths', type=int, nargs='+', default=None, help='depth values to sweep, applied to every selected model (grid with --features via make_channels); overrides any JSON sweeps config')
+		parser.add_argument('--features', type=int, nargs='+', default=base['features'], help='feature-count values to sweep, applied to every selected model (grid with --depths via make_channels)')
+		parser.add_argument('--depths', type=int, nargs='+', default=base['depths'], help='depth values to sweep, applied to every selected model (grid with --features via make_channels)')
 		parser.add_argument('--epochs-per-checkpoint', type=int, default=base['epochs_per_checkpoint'])
 		parser.add_argument('--checkpoints', type=int, default=base['checkpoints'])
 		parser.add_argument('--batch-size', type=int, default=base['batch_size'])
@@ -174,6 +164,8 @@ class ExperimentConfig:
 		values = dict(base)
 		values.update({
 			'models': args.models,
+			'features': args.features,
+			'depths': args.depths,
 			'epochs_per_checkpoint': args.epochs_per_checkpoint,
 			'checkpoints': args.checkpoints,
 			'batch_size': args.batch_size,
@@ -182,12 +174,5 @@ class ExperimentConfig:
 			'seed': args.seed,
 			'output_root': args.output_root,
 		})
-		if args.features is not None or args.depths is not None:
-			sweep = {}
-			if args.features is not None:
-				sweep['features'] = args.features
-			if args.depths is not None:
-				sweep['depths'] = args.depths
-			values['sweeps'] = [{'model': m, **sweep} for m in args.models]
 
 		return cls(values, args.report, args.replot)

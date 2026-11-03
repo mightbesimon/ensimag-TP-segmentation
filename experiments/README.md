@@ -4,8 +4,9 @@ Everything behind `experiment.py`. One file per responsibility, each under ~200 
 
 ```
 config.py      RunSpec (one model's architecture: model_key, enc_channels, dec_channels)
-               ExperimentConfig (MODEL_REGISTRY, sweep expansion, default-json -> --config
-               file -> CLI-flags layering). ExperimentConfig.setup() is the only entry point.
+               ExperimentConfig (MODEL_REGISTRY, features/depths grid expansion, default-json
+               -> --config file -> CLI-flags layering). ExperimentConfig.setup() is the only
+               entry point.
 
 data.py        DataManager -- seeding, dataloaders, the fixed seeded eval-image subset used
                for every checkpoint/model so comparisons are apples-to-apples.
@@ -64,8 +65,8 @@ on the command line overrides whatever that file says.
 | flag | meaning | default (from `experiment_config.json`) |
 |---|---|---|
 | `--models` | which model keys to train (space-separated) | `simpleconv hourglass unet` |
-| `--features` | feature-count values to sweep, applied to every model in `--models` (grid with `--depths`); overrides any JSON `sweeps` | none |
-| `--depths` | depth values to sweep, applied to every model in `--models` (grid with `--features`); overrides any JSON `sweeps` | none |
+| `--features` | feature-count values, applied to every model in `--models` (grid with `--depths`, via `make_channels`) | `[16]` |
+| `--depths` | depth values, applied to every model in `--models` (grid with `--features`, via `make_channels`) | `[3]` |
 | `--epochs-per-checkpoint` | epochs trained per checkpoint step | `20` |
 | `--checkpoints` | how many checkpoint steps = target epochs; e.g. `3` with the above → targets `[20, 40, 60]` | `1` |
 | `--batch-size` | DataLoader batch size | `256` |
@@ -73,38 +74,36 @@ on the command line overrides whatever that file says.
 | `--num-eval-images` | size of the fixed seeded eval-image subset used for every checkpoint/model | `10` |
 | `--seed` | seed for data split, eval-image subset, and each model's init/shuffling | `22` |
 | `--output-root` | where everything gets written | `experiment_output` |
-| `--config` | path to a JSON file of these same keys (plus optional `sweeps`) to use as the base instead of `experiment_config.json` | none |
+| `--config` | path to a JSON file of these same keys to use as the base instead of `experiment_config.json` | none |
 | `--report` | print a report instead of running; bare flag = latest run, or pass a `<timestamp>` for a specific past run | none |
 | `--replot` | regenerate a past run's comparison figures + report instead of running, entirely from what's already on disk (no training); bare flag = latest run, or pass a `<timestamp>` | none |
 
-`--features`/`--depths` cover the common case directly from the CLI, e.g.
-`--models hourglass --features 8 16 32 --depths 2 3 4` sweeps all 9 combinations for
-`hourglass` (via the same symmetric doubling scheme each class's own defaults follow). They
-apply the *same* grid to every model named in `--models`, in addition to (not instead of)
-`--models` -- unlike the JSON form below, `--models` still picks which architectures train.
+`--features`/`--depths` take one or more values (space-separated) and sweep the full grid
+(via the same symmetric doubling scheme each class's own defaults follow), applied to
+*every* model named in `--models` -- e.g. `--models hourglass --features 8 16 32 --depths 2
+3 4` trains all 9 feature×depth combinations for `hourglass`. Passing only one of the two
+still sweeps it; the other falls back to that model's own class default. Setting either to
+`null` (in JSON) falls back the same way -- `experiment_config.json` ships with the literal
+`[16]`/`[3]` instead, since that's what every model's class default actually is right now, so
+the config is honest about what a bare `python3 experiment.py` trains without needing to
+read `model/network.py`. There's currently no way to give two different models two different grids in one invocation, or an
+exact custom `enc_channels`/`dec_channels` shape the features/depths formula can't express --
+that would need running `experiment.py` once per model/shape instead.
 
-Anything more elaborate -- a different grid per model, or an exact custom `enc_channels`/
-`dec_channels` shape the features/depths formula can't express -- still needs `sweeps` in a
-`--config` JSON file:
+Either can also be set as a plain list in `experiment_config.json` or a `--config` file, same
+as every other key -- a CLI flag still overrides it:
 
 ```json
 // hourglass_sweep.json
 {
 	"models": ["hourglass"],
-	"sweeps": [
-		{"model": "hourglass", "features": [8, 16, 32], "depths": [2, 3, 4]},
-		{"model": "unet", "enc_channels": [3, 24, 48], "dec_channels": [48, 24, 1]}
-	]
+	"features": [8, 16, 32],
+	"depths": [2, 3, 4]
 }
 ```
 ```
 python3 experiment.py --config hourglass_sweep.json
 ```
-Each sweep entry is either `{"model", "features", "depths"}` (expanded into every
-features × depths combination) or `{"model", "enc_channels", "dec_channels"}` (used exactly
-as given). When `sweeps` is non-empty -- whether from a JSON `--config` file or because
-`--features`/`--depths` was passed -- it replaces `--models`-driven default architectures
-entirely for that run: every architecture trained comes from the sweep list.
 
 ## Pipeline
 

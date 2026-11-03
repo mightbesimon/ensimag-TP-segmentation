@@ -4,12 +4,13 @@
 		"hourglass",
 		"unet"
 	],
+	"features": [16],
+	"depths": [3],
 	"epochs_per_checkpoint": 20,
 	"checkpoints": 1,
 	"batch_size": 256,
 	"lr": 0.001,
 	"num_eval_images": 10,
 	"seed": 22,
-	"output_root": "experiment_output",
-	"sweeps": []
+	"output_root": "experiment_output"
 }
