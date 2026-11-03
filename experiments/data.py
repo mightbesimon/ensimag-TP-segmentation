@@ -12,6 +12,7 @@ from torchvision import transforms
 
 from model import config
 from model.dataset import SegmentationDataset
+from experiments.log import Log
 
 
 class DataManager:
@@ -49,8 +50,8 @@ class DataManager:
 		split = train_test_split(image_paths, mask_paths, test_size=config.TEST_SPLIT, random_state=self.seed)
 		(self._train_images, self.test_images) = split[:2]
 		(self._train_masks, self._test_masks) = split[2:]
-		print(f'[INFO] found {len(self._train_images)} examples in the training set...')
-		print(f'[INFO] found {len(self.test_images)} examples in the test set...')
+		Log.info(f'found {len(self._train_images)} examples in the training set...')
+		Log.info(f'found {len(self.test_images)} examples in the test set...')
 
 		# same images get evaluated at every checkpoint and for every model,
 		# so the grids/metrics/distributions are actually comparable

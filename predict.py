@@ -49,7 +49,7 @@ def make_predictions(model, imagePath):
 
         # turn off gradient tracking
         with torch.no_grad():
-                # load the image from disk, swap its color channels, cast it
+                # load the image from disk, swap its colour channels, cast it
                 # to float data type, and scale its pixel values
                 image = cv2.imread(imagePath)
                 image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)

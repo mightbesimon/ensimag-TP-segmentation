@@ -42,11 +42,11 @@ def group_by_video(pairs):
 	return by_video
 
 
-def overlay_mask(image, mask_binary, color, alpha=0.45):
-	# color must be in the same range as image (0..1 floats or 0..255 ints)
+def overlay_mask(image, mask_binary, colour, alpha=0.45):
+	# colour must be in the same range as image (0..1 floats or 0..255 ints)
 	orig_dtype = image.dtype
 	result = image.astype('float32').copy()
-	result[mask_binary] = result[mask_binary] * (1 - alpha) + np.array(color, dtype='float32') * alpha
+	result[mask_binary] = result[mask_binary] * (1 - alpha) + np.array(colour, dtype='float32') * alpha
 	if orig_dtype.kind == 'u':
 		result = result.clip(0, 255)
 	return result.astype(orig_dtype)

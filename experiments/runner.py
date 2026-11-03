@@ -11,6 +11,7 @@ from torch.nn import BCEWithLogitsLoss
 from tqdm import tqdm
 
 from model import config as model_config
+from experiments.log import Log
 from experiments.dashboard import Dashboard, Status, TIMESTAMP_FORMAT
 from experiments.data import DataManager
 from experiments.plots import ComparisonPlots, PredictGridPlotter
@@ -85,7 +86,7 @@ class ExperimentRunner:
 		latest = self.checkpoint_mgr.find_latest(model_hash, self.cfg.seed)
 		if latest is not None:
 			ckpt = self.checkpoint_mgr.load_into(model, latest)
-			print(f'[INFO] {run_spec.short_label}: resuming from epoch {latest["epoch"]} (hash {model_hash}, seed {self.cfg.seed})')
+			Log.info(f'{run_spec.short_label}: resuming from epoch {latest["epoch"]} (hash {model_hash}, seed {self.cfg.seed})')
 			return ModelRun(run_spec, model, model_hash, model_dir, latest['epoch'], ckpt['history'], latest['training_time_seconds'])
 		return ModelRun(run_spec, model, model_hash, model_dir, 0, {'train_loss': [], 'test_loss': []}, 0.0)
 
@@ -114,7 +115,7 @@ class ExperimentRunner:
 				metrics_path = os.path.join(run.model_dir, f'predict_metrics_ep{run.current_epoch}_s{seed}.csv')
 				try:
 					results = Report.read_csv_rows(metrics_path)
-					print(f'[INFO] {run.run_spec.short_label}: epoch {run.current_epoch} already evaluated, reusing {metrics_path}')
+					Log.info(f'{run.run_spec.short_label}: epoch {run.current_epoch} already evaluated, reusing {metrics_path}')
 				except FileNotFoundError:
 					results = grid_plotter.render_grid(run.model, data.eval_images, run.model_dir, run.current_epoch, seed, f'{run.run_spec.short_label} - epoch {run.current_epoch} (seed {seed})')
 					# deliberately not touching training_curve/history_s*.json
@@ -163,10 +164,10 @@ class ExperimentRunner:
 		target_epochs = self.cfg.target_epochs()
 		run_specs = self.cfg.run_specs()
 
-		print(f'[INFO] config: {json.dumps(self.cfg.to_dict())}')
-		print(f'[INFO] target epochs: {target_epochs}')
+		Log.info(f'config: {json.dumps(self.cfg.to_dict())}')
+		Log.info(f'target epochs: {target_epochs}')
 		for spec in run_specs:
-			print(f'[INFO] will train: {spec.short_label}  enc={spec.enc_channels} dec={spec.dec_channels}')
+			Log.info(f'will train: {spec.short_label}  enc={spec.enc_channels} dec={spec.dec_channels}')
 
 		DataManager.set_seed(self.cfg.seed)
 		data = DataManager(self.cfg.batch_size, self.cfg.seed, self.cfg.num_eval_images).build()
@@ -197,13 +198,13 @@ class ExperimentRunner:
 			run = self._prepare(spec)
 			runs.append(run)
 
-			print(f'[INFO] {run.run_spec.short_label}: targeting epochs {target_epochs}')
+			Log.info(f'{run.run_spec.short_label}: targeting epochs {target_epochs}')
 			checkpoints_out = self._train_and_eval(run, target_epochs, data, grid_plotter)
 			Status.note_model(self.out_root, timestamp, run.run_spec, run.model_hash, self.cfg.seed, checkpoints_out)
 			Status.write_run_status(run_dir, 'training', runs, self.cfg.seed)
 
 			if not checkpoints_out:
-				print(f'[WARN] {run.run_spec.short_label}: no checkpoints reached (hash {run.model_hash} already past every target), skipping from comparison')
+				Log.warn(f'{run.run_spec.short_label}: no checkpoints reached (hash {run.model_hash} already past every target), skipping from comparison')
 				continue
 
 			result = ModelResult(run.run_spec.short_label, run.model, run.run_spec, run.model_hash, run.history, run.history.get('num_params', 0), run.cumulative_time)
@@ -222,7 +223,7 @@ class ExperimentRunner:
 		Status.write_run_status(run_dir, 'plotting', runs, self.cfg.seed)
 		if len(all_results) > 1:
 			self._plot_comparison(run_dir, all_results, data, self.device, loss_fn)
-			print(f'[INFO] comparison written to {run_dir}')
+			Log.info(f'comparison written to {run_dir}')
 
 		Status.set_run_stage(self.out_root, timestamp, 'reporting')
 		Status.write_run_status(run_dir, 'reporting', runs, self.cfg.seed)
@@ -234,5 +235,5 @@ class ExperimentRunner:
 		Status.write_run_status(run_dir, 'complete', runs, self.cfg.seed)
 		Dashboard.build(self.out_root)
 
-		print(f'[INFO] experiment outputs written to {run_dir}')
+		Log.info(f'experiment outputs written to {run_dir}')
 		return run_dir

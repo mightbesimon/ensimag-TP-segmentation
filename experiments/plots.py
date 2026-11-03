@@ -11,6 +11,7 @@ from PIL import Image, ImageDraw
 from tqdm import tqdm
 
 from dataset_tools import group_by_video, pair_image_mask_paths
+from experiments.log import Log
 from experiments.eval import Evaluator
 
 VIDEO_COMPARISON_NUMBER = '00011'
@@ -45,17 +46,17 @@ class PredictGridPlotter:
 			axs[row, 3].imshow(r['pred_prob'], cmap='gray')
 
 			row_label = f'{r["name"]}\nbce={r["bce"]:.3f} dice={r["dice"]:.2f} iou={r["iou"]:.2f}'
-			edge_color = None
+			edge_colour = None
 			if row == best_idx:
-				row_label, edge_color = 'BEST\n' + row_label, 'tab:green'
+				row_label, edge_colour = 'BEST\n' + row_label, 'tab:green'
 			elif row == worst_idx:
-				row_label, edge_color = 'WORST\n' + row_label, 'tab:red'
+				row_label, edge_colour = 'WORST\n' + row_label, 'tab:red'
 
 			axs[row, 0].set_ylabel(row_label, fontsize=7, rotation=0, ha='right', va='center')
 			for col in range(4):
-				if edge_color is not None:
+				if edge_colour is not None:
 					for spine in axs[row, col].spines.values():
-						spine.set_edgecolor(edge_color)
+						spine.set_edgecolor(edge_colour)
 						spine.set_linewidth(2.5)
 				axs[row, col].set_xticks([])
 				axs[row, col].set_yticks([])
@@ -99,11 +100,11 @@ class ComparisonPlots:
 
 	def training_curves(self, model_results):
 		fig = plt.figure()
-		colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
-		for color, res in zip(colors, model_results):
+		colours = plt.rcParams['axes.prop_cycle'].by_key()['color']
+		for colour, res in zip(colours, model_results):
 			epochs = range(1, len(res.history['train_loss']) + 1)
-			plt.plot(epochs, res.history['train_loss'], color=color, linestyle='-', label=f'{res.label} train')
-			plt.plot(epochs, res.history['test_loss'], color=color, linestyle='--', label=f'{res.label} test')
+			plt.plot(epochs, res.history['train_loss'], color=colour, linestyle='-', label=f'{res.label} train')
+			plt.plot(epochs, res.history['test_loss'], color=colour, linestyle='--', label=f'{res.label} test')
 		plt.title('training loss comparison')
 		plt.xlabel('epoch #')
 		plt.ylabel('loss')
@@ -117,11 +118,11 @@ class ComparisonPlots:
 		# but this isolates the gap itself so overfitting is directly visible
 		# rather than something you have to eyeball between two lines
 		fig = plt.figure()
-		colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
-		for color, res in zip(colors, model_results):
+		colours = plt.rcParams['axes.prop_cycle'].by_key()['color']
+		for colour, res in zip(colours, model_results):
 			epochs = range(1, len(res.history['train_loss']) + 1)
 			gap = [test - train for train, test in zip(res.history['train_loss'], res.history['test_loss'])]
-			plt.plot(epochs, gap, color=color, label=res.label)
+			plt.plot(epochs, gap, color=colour, label=res.label)
 		plt.axhline(0, color='gray', linewidth=0.8, linestyle=':')
 		plt.title('generalization gap (test loss - train loss)')
 		plt.xlabel('epoch #')
@@ -150,7 +151,7 @@ class ComparisonPlots:
 		all_epochs = sorted({c['epoch'] for res in model_results for c in res.checkpoints})
 		n_models = len(model_results)
 		width = 0.8 / n_models
-		colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+		colours = plt.rcParams['axes.prop_cycle'].by_key()['color']
 
 		fig, ax = plt.subplots(figsize=(2.5 * len(all_epochs) + 2, 5))
 		for m, res in enumerate(model_results):
@@ -159,7 +160,7 @@ class ComparisonPlots:
 			positions = [i + (m - (n_models - 1) / 2) * width for i, e in enumerate(all_epochs) if e in by_epoch]
 			bp = ax.boxplot(data, positions=positions, widths=width * 0.9, patch_artist=True)
 			for box in bp['boxes']:
-				box.set_facecolor(colors[m % len(colors)])
+				box.set_facecolor(colours[m % len(colours)])
 				box.set_label(res.label)
 			for box in bp['boxes'][1:]:
 				box.set_label('_nolegend_')
@@ -207,11 +208,11 @@ class ComparisonPlots:
 		plt.close(fig)
 
 	@staticmethod
-	def _overlay(image, mask_binary, color, alpha=0.45):
+	def _overlay(image, mask_binary, colour, alpha=0.45):
 		# the predicted/ground-truth mask tinted directly onto the photo,
 		# rather than shown as its own separate black/white image
 		overlay = image.copy()
-		overlay[mask_binary] = overlay[mask_binary] * (1 - alpha) + np.array(color, dtype=np.float32) * alpha
+		overlay[mask_binary] = overlay[mask_binary] * (1 - alpha) + np.array(colour, dtype=np.float32) * alpha
 		return overlay
 
 	def overlay_grid(self, model_results, eval_images, device, loss_fn, max_images):
@@ -227,12 +228,12 @@ class ComparisonPlots:
 
 		for row, path in enumerate(shown):
 			r0 = Evaluator.evaluate_image(model_results[0].model, path, device, loss_fn)
-			axs[row, 0].imshow(self._overlay(r0['orig'], r0['gt_mask'] > 127, color=(0.0, 1.0, 0.0)))
+			axs[row, 0].imshow(self._overlay(r0['orig'], r0['gt_mask'] > 127, colour=(0.0, 1.0, 0.0)))
 			axs[row, 0].set_ylabel(r0['name'], fontsize=7, rotation=0, ha='right', va='center')
 
 			for m, res in enumerate(model_results):
 				r = Evaluator.evaluate_image(res.model, path, device, loss_fn)
-				axs[row, 1 + m].imshow(self._overlay(r['orig'], r['pred_mask'] > 127, color=(1.0, 0.0, 0.0)))
+				axs[row, 1 + m].imshow(self._overlay(r['orig'], r['pred_mask'] > 127, colour=(1.0, 0.0, 0.0)))
 				axs[row, 1 + m].set_xlabel(f'bce={r["bce"]:.3f}', fontsize=7)
 
 			for col in range(axs.shape[1]):
@@ -297,16 +298,16 @@ class ComparisonPlots:
 		pairs, _ = pair_image_mask_paths()
 		frames_info = group_by_video(pairs).get(video_number)
 		if not frames_info:
-			print(f'[WARN] video comparison: no frames found for video {video_number}, skipping')
+			Log.warn(f'video comparison: no frames found for video {video_number}, skipping')
 			return
 
 		frames = []
 		for image_path, _, _ in tqdm(frames_info, desc=f'video comparison ({video_number})'):
 			r0 = Evaluator.evaluate_image(model_results[0].model, image_path, device, loss_fn)
-			rows = [self._label_panel(self._overlay(r0['orig'], r0['gt_mask'] > 127, color=(0.0, 1.0, 0.0)), 'ground truth')]
+			rows = [self._label_panel(self._overlay(r0['orig'], r0['gt_mask'] > 127, colour=(0.0, 1.0, 0.0)), 'ground truth')]
 			for res in model_results:
 				r = Evaluator.evaluate_image(res.model, image_path, device, loss_fn)
-				rows.append(self._label_panel(self._overlay(r['orig'], r['pred_mask'] > 127, color=(1.0, 0.0, 0.0)), res.label))
+				rows.append(self._label_panel(self._overlay(r['orig'], r['pred_mask'] > 127, colour=(1.0, 0.0, 0.0)), res.label))
 
 			composite = Image.new('RGB', (rows[0].width, sum(row.height for row in rows)), 'white')
 			y = 0
@@ -317,4 +318,4 @@ class ComparisonPlots:
 
 		out_path = self._path(f'video_comparison_{video_number}.gif')
 		frames[0].save(out_path, save_all=True, append_images=frames[1:], duration=int(1000 / fps), loop=0)
-		print(f'[INFO] wrote {out_path} ({len(frames)} frames, {len(model_results)} models)')
+		Log.info(f'wrote {out_path} ({len(frames)} frames, {len(model_results)} models)')

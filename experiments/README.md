@@ -39,6 +39,10 @@ runner.py      ModelRun, ModelResult, ExperimentRunner -- orchestrates everythin
 replot.py      Replotter -- regenerates a past run's comparison figures + report entirely
                from disk (rebuilds each model, loads its latest checkpoint, re-plots), no
                training involved. For when a plotting change should apply to an old run too.
+
+log.py         Log -- coloured [INFO]/[WARN]/section-header console output. ANSI colour
+               codes are defined once here (RESET/BOLD/GREEN/...) rather than hardcoded
+               inline wherever something gets coloured.
 ```
 
 ## Arguments

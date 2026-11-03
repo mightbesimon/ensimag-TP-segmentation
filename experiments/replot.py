@@ -10,6 +10,7 @@ import re
 from torch.nn import BCEWithLogitsLoss
 
 from model import config as model_config
+from experiments.log import Log
 from experiments.config import RunSpec
 from experiments.data import DataManager
 from experiments.report import Report
@@ -66,7 +67,7 @@ class Replotter:
 		device = model_config.DEVICE
 		all_results = [cls._rebuild_model_result(out_root, entry, device, seed, final_target) for entry in manifest['models']]
 		if len(all_results) <= 1:
-			print(f'[WARN] {run_dir} has only {len(all_results)} model(s) -- comparison plots need at least 2, nothing to replot')
+			Log.warn(f'{run_dir} has only {len(all_results)} model(s) -- comparison plots need at least 2, nothing to replot')
 			return run_dir
 
 		data = DataManager(run_config['batch_size'], run_config['seed'], run_config['num_eval_images']).build()
@@ -75,5 +76,5 @@ class Replotter:
 
 		report = Report.load(out_root, timestamp)
 		report.save()
-		print(f'[INFO] replotted {run_dir}')
+		Log.info(f'replotted {run_dir}')
 		return run_dir

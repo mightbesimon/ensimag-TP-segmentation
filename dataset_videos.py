@@ -14,6 +14,7 @@ import numpy as np
 from PIL import Image, ImageDraw
 
 from dataset_tools import crop_to_mask, group_by_video, overlay_mask, pair_image_mask_paths
+from experiments.log import Log
 
 # edit this list with whichever video numbers (the <video> in <video>_<frame>.png) you want to see
 VIDEO_NUMBERS = [
@@ -43,7 +44,7 @@ def build_frame(image_path, mask_path):
 	fg = mask > 127
 
 	mask_rgb = np.stack([mask] * 3, axis=-1)
-	overlay = overlay_mask(image, fg, color=(255, 0, 0))
+	overlay = overlay_mask(image, fg, colour=(255, 0, 0))
 	cropped = crop_to_mask(image, fg)
 
 	panels = [
@@ -63,7 +64,7 @@ def build_frame(image_path, mask_path):
 def make_gif(video_number, frames_info, out_path):
 	frames = [build_frame(img, mask) for img, mask, _ in frames_info]
 	frames[0].save(out_path, save_all=True, append_images=frames[1:], duration=int(1000 / FPS), loop=0)
-	print(f'[INFO] wrote {out_path} ({len(frames)} frames)')
+	Log.info(f'wrote {out_path} ({len(frames)} frames)')
 
 
 if __name__ == '__main__':
@@ -75,14 +76,14 @@ if __name__ == '__main__':
 	for video_number in VIDEO_NUMBERS:
 		frames_info = by_video.get(video_number)
 		if not frames_info:
-			print(f'[WARN] no frames found for video {video_number}')
+			Log.warn(f'no frames found for video {video_number}')
 			continue
 
 		out_path = os.path.join(OUT_DIR, f'{video_number}.gif')
 		if os.path.exists(out_path):
-			print(f'[INFO] {out_path} already exists, skipping')
+			Log.info(f'{out_path} already exists, skipping')
 			continue
 
 		make_gif(video_number, frames_info, out_path)
 
-	print(f'[INFO] done -- see {OUT_DIR}/')
+	Log.info(f'done -- see {OUT_DIR}/')

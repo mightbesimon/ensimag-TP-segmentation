@@ -21,6 +21,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from dataset_tools import crop_to_mask, group_by_video, overlay_mask, pair_image_mask_paths
+from experiments.log import Log
 
 OUT_DIR = 'dataset_exploration'
 SEED = 42
@@ -29,15 +30,15 @@ SEED = 42
 def skipping(path):
 	exists = os.path.exists(path)
 	if exists:
-		print(f'[INFO] {path} already exists, skipping')
+		Log.info(f'{path} already exists, skipping')
 	return exists
 
 
 def report_sizes(sample):
 	image_sizes = {cv2.imread(img).shape[:2] for img, _ in sample}
 	mask_sizes = {cv2.imread(mask, 0).shape for _, mask in sample}
-	print(f'[INFO] image sizes in this sample: {image_sizes}')
-	print(f'[INFO] mask sizes in this sample: {mask_sizes}')
+	Log.info(f'image sizes in this sample: {image_sizes}')
+	Log.info(f'mask sizes in this sample: {mask_sizes}')
 
 
 def compute_ratios(sample):
@@ -52,7 +53,7 @@ def compute_ratios(sample):
 
 def save_histogram(rows, path):
 	ratios = np.array([r for _, _, r in rows])
-	print(f'[INFO] foreground pixel ratio over {len(rows)} masks: '
+	Log.info(f'foreground pixel ratio over {len(rows)} masks: '
 		f'mean={ratios.mean():.3f} median={np.median(ratios):.3f} '
 		f'min={ratios.min():.3f} max={ratios.max():.3f} std={ratios.std():.3f}')
 
@@ -63,7 +64,7 @@ def save_histogram(rows, path):
 	plt.ylabel('number of masks')
 	fig.savefig(path)
 	plt.close(fig)
-	print(f'[INFO] wrote {path}')
+	Log.info(f'wrote {path}')
 
 
 def save_grid(rows, path, title):
@@ -80,7 +81,7 @@ def save_grid(rows, path, title):
 
 		axs[row, 0].imshow(image)
 		axs[row, 1].imshow(mask, cmap='gray')
-		axs[row, 2].imshow(overlay_mask(image, fg, color=(1.0, 0.0, 0.0)))
+		axs[row, 2].imshow(overlay_mask(image, fg, colour=(1.0, 0.0, 0.0)))
 		axs[row, 3].imshow(crop_to_mask(image, fg))
 		axs[row, 0].set_ylabel(f'{os.path.basename(img_path)}\nfg={ratio:.2%}', fontsize=6, rotation=0, ha='right', va='center')
 		for col in range(4):
@@ -91,7 +92,7 @@ def save_grid(rows, path, title):
 	fig.tight_layout()
 	fig.savefig(path)
 	plt.close(fig)
-	print(f'[INFO] wrote {path}')
+	Log.info(f'wrote {path}')
 
 
 def save_video_first_frames_collage(pairs, path):
@@ -115,7 +116,7 @@ def save_video_first_frames_collage(pairs, path):
 	fig.tight_layout()
 	fig.savefig(path, dpi=150)
 	plt.close(fig)
-	print(f'[INFO] wrote {path} ({n} videos)')
+	Log.info(f'wrote {path} ({n} videos)')
 
 
 if __name__ == '__main__':
@@ -123,9 +124,9 @@ if __name__ == '__main__':
 	rng = random.Random(SEED)
 
 	pairs, missing = pair_image_mask_paths()
-	print(f'[INFO] {len(pairs)} image/mask pairs found')
+	Log.info(f'{len(pairs)} image/mask pairs found')
 	if missing:
-		print(f'[WARN] {len(missing)} images have no matching mask, e.g. {missing[:5]}')
+		Log.warn(f'{len(missing)} images have no matching mask, e.g. {missing[:5]}')
 
 	histogram_path = os.path.join(OUT_DIR, 'foreground_ratio_histogram.png')
 	smallest_path = os.path.join(OUT_DIR, 'smallest_foreground.png')
@@ -138,28 +139,28 @@ if __name__ == '__main__':
 	need_largest = not os.path.exists(largest_path)
 
 	if not (need_histogram or need_smallest or need_largest):
-		print(f'[INFO] {histogram_path}, {smallest_path}, {largest_path} all exist, skipping')
+		Log.info(f'{histogram_path}, {smallest_path}, {largest_path} all exist, skipping')
 	else:
 		sample = rng.sample(pairs, min(300, len(pairs)))
 		report_sizes(sample[:50])
 		rows, unique_vals = compute_ratios(sample)
 		shown_vals = sorted(unique_vals)[:20]
-		print(f'[INFO] distinct pixel values seen in sampled masks: {shown_vals}{" ..." if len(unique_vals) > 20 else ""}')
+		Log.info(f'distinct pixel values seen in sampled masks: {shown_vals}{" ..." if len(unique_vals) > 20 else ""}')
 
 		if need_histogram:
 			save_histogram(rows, histogram_path)
 		else:
-			print(f'[INFO] {histogram_path} already exists, skipping')
+			Log.info(f'{histogram_path} already exists, skipping')
 
 		rows_by_ratio = sorted(rows, key=lambda r: r[2])
 		if need_smallest:
 			save_grid(rows_by_ratio[:4], smallest_path, 'smallest foreground (hardest-looking) examples')
 		else:
-			print(f'[INFO] {smallest_path} already exists, skipping')
+			Log.info(f'{smallest_path} already exists, skipping')
 		if need_largest:
 			save_grid(rows_by_ratio[-4:], largest_path, 'largest foreground (easiest-looking) examples')
 		else:
-			print(f'[INFO] {largest_path} already exists, skipping')
+			Log.info(f'{largest_path} already exists, skipping')
 
 	if not skipping(random_path):
 		random_sample = rng.sample(pairs, min(8, len(pairs)))
@@ -169,4 +170,4 @@ if __name__ == '__main__':
 	if not skipping(collage_path):
 		save_video_first_frames_collage(pairs, collage_path)
 
-	print(f'[INFO] done -- see {OUT_DIR}/')
+	Log.info(f'done -- see {OUT_DIR}/')

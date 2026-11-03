@@ -16,6 +16,7 @@ import sys
 import torch
 
 from model import config
+from experiments.log import Log
 from experiments.config import MODEL_REGISTRY
 from experiments.data import DataManager
 
@@ -47,11 +48,11 @@ if __name__ == '__main__':
 
 	os.makedirs(config.BASE_OUTPUT, exist_ok=True)
 	torch.save(model, config.BEST_MODEL_PATH)
-	print(f'[INFO] wrote full model object to {config.BEST_MODEL_PATH} (epoch {ckpt["epoch"]})')
+	Log.info(f'wrote full model object to {config.BEST_MODEL_PATH} (epoch {ckpt["epoch"]})')
 
 	data = DataManager(batch_size=1, seed=seed, num_eval_images=1).build()
 	with open(config.TEST_PATH, 'w') as f:
 		f.write('\n'.join(data.test_images))
-	print(f'[INFO] wrote {config.TEST_PATH} ({len(data.test_images)} images, seed {seed})')
+	Log.info(f'wrote {config.TEST_PATH} ({len(data.test_images)} images, seed {seed})')
 
-	print('[INFO] you can now run: python3 predict.py')
+	Log.info('you can now run: python3 predict.py')

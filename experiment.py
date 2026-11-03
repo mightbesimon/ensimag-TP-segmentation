@@ -12,7 +12,9 @@
 
 import socket
 
-print(f'[INFO] running on {socket.gethostname()}')
+from experiments.log import Log
+
+Log.info(f'running on {socket.gethostname()}')
 
 from experiments.config import ExperimentConfig
 from experiments.replot import Replotter

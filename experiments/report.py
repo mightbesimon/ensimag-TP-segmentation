@@ -10,6 +10,7 @@ import re
 
 import numpy as np
 
+from experiments.log import BOLD, CYAN, GREEN, RED, RESET, Log
 from experiments.train import CheckpointManager
 
 METRIC_CSV_RE = re.compile(r'predict_metrics_ep(\d+)_s(\d+)\.csv$')
@@ -169,9 +170,25 @@ class Report:
 
 		return lines
 
+	@staticmethod
+	def _colourise(line):
+		# _lines()/save() stay plain text -- report.txt is meant to be read
+		# in a plain editor too -- this only colours what's actually printed
+		# to a terminal
+		if line.startswith('==='):
+			return f'{BOLD}{CYAN}{line}{RESET}'
+		if line.startswith('--') and line.endswith('--'):
+			return f'{BOLD}{line}{RESET}'
+		if 'worst' in line.lower():
+			return f'{RED}{line}{RESET}'
+		if 'best' in line.lower():
+			return f'{GREEN}{line}{RESET}'
+		return line
+
 	def print(self):
+		Log.section('REPORT')
 		for line in self._lines():
-			print(line)
+			print(self._colourise(line))
 
 	def save(self):
 		path = os.path.join(self.out_root, self.timestamp, 'report.txt')
