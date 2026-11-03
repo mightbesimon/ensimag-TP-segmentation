@@ -10,6 +10,10 @@
 # Thin entry point: all the actual logic lives in experiments/*.py (see
 # experiments/README.md for the package layout and pipeline).
 
+import socket
+
+print(f'[INFO] running on {socket.gethostname()}')
+
 from experiments.config import ExperimentConfig
 from experiments.replot import Replotter
 from experiments.report import Report
