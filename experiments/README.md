@@ -36,9 +36,12 @@ report.py      ModelReport, Report -- the full-detail terminal/text report, buil
 runner.py      ModelRun, ModelResult, ExperimentRunner -- orchestrates everything above
                following the pipeline documented below.
 
-replot.py      Replotter -- regenerates a past run's comparison figures + report entirely
-               from disk (rebuilds each model, loads its latest checkpoint, re-plots), no
-               training involved. For when a plotting change should apply to an old run too.
+resume.py      Resumer -- resumes a past run (--resume) by re-entering ExperimentRunner.run()
+               with that run's own saved config.json and run_specs, into that same
+               <timestamp>/ directory. No separate reconstruction logic: every model already
+               resumes at the checkpoint/epoch level on its own, so this does the right
+               amount of work whether the run was 0%, 50%, or 100% done -- a fully-trained
+               model just falls straight through to plot + report.
 
 log.py         Log -- coloured [INFO]/[WARN]/section-header console output. ANSI colour
                codes are defined once here (RESET/BOLD/GREEN/...) rather than hardcoded
@@ -56,8 +59,9 @@ python3 experiment.py --config myconfig.json            # load a different saved
 python3 experiment.py --config myconfig.json --lr 0.01  # flags still override whatever the file set
 python3 experiment.py --report                          # reprint the latest run's report, no training
 python3 experiment.py --report 261027T122740            # reprint one specific past run, by its <timestamp> dir name
-python3 experiment.py --replot                          # regenerate the latest run's comparison figures, no training
-python3 experiment.py --replot 261027T122740             # regenerate one specific past run's figures (e.g. after a plotting fix)
+python3 experiment.py --resume                          # resume the latest run -- training/plotting/reporting,
+                                                         # whichever is left -- into that same <timestamp> dir
+python3 experiment.py --resume 261027T122740             # resume one specific past run
 ```
 
 Every flag has a default pulled from `experiment_config.json` (project root) — that file *is* the
@@ -80,7 +84,7 @@ on the command line overrides whatever that file says.
 | `--output-root` | where everything gets written | `experiment_output` |
 | `--config` | path to a JSON file of these same keys to use as the base instead of `experiment_config.json` | none |
 | `--report` | print a report instead of running; bare flag = latest run, or pass a `<timestamp>` for a specific past run | none |
-| `--replot` | regenerate a past run's comparison figures + report instead of running, entirely from what's already on disk (no training); bare flag = latest run, or pass a `<timestamp>` | none |
+| `--resume` | resume a past run instead of starting a new one -- training/plotting/reporting, whichever is unfinished, into that same `<timestamp>` directory; bare flag = latest run, or pass a `<timestamp>` | none |
 
 `--features`/`--depths` take one or more values (space-separated) and sweep the full grid
 (via the same symmetric doubling scheme each class's own defaults follow), applied to
@@ -112,24 +116,43 @@ python3 experiment.py --config hourglass_sweep.json
 ## Pipeline
 
 ```
-normal run:   config -> data -> train -> eval -> plot -> report
-resumed run:  train (whatever's left) -> eval -> plot -> report
+config -> data -> train -> eval -> plot -> report
 ```
 
 `train` and `eval` are interleaved *per target epoch*, not run as separate passes: for
 each target epoch (`epochs_per_checkpoint * [1..checkpoints]`, e.g. `[20, 40, 60]`),
 `ExperimentRunner` either reuses an existing checkpoint at that exact epoch+seed, or trains
 just the gap from wherever the model currently is, then immediately runs `eval` (the
-predict grid) and checkpoints. This is also how resuming works: every model's
-*architecture* is identified by `TrainingManager.architecture_signature()` -- both the
-parameter name+shape signature AND the full declared module tree (`str(model)`), so a
-checkpoint is never loaded into incompatible code, and a structural edit with no parameter
-shape change (e.g. adding a ReLU inside `Block`) still invalidates it -- hashed into
-`TrainingManager.hash_signature()`. `CheckpointManager` looks up the latest checkpoint for
-that hash *and seed* before training a single epoch (different seeds of the same
-architecture are different, non-resumable-into-each-other experiments, but do share the same
-directory and checkpoint index entry). Interrupting a run (lost SLURM connection, ctrl-C)
-and re-running the same command picks up exactly where it left off, model by model.
+predict grid) and checkpoints. Every model's *architecture* is identified by
+`TrainingManager.architecture_signature()` -- both the parameter name+shape signature AND
+the full declared module tree (`str(model)`), so a checkpoint is never loaded into
+incompatible code, and a structural edit with no parameter shape change (e.g. adding a ReLU
+inside `Block`) still invalidates it -- hashed into `TrainingManager.hash_signature()`.
+`CheckpointManager` looks up the latest checkpoint for that hash *and seed* before training
+a single epoch (different seeds of the same architecture are different,
+non-resumable-into-each-other experiments, but do share the same directory and checkpoint
+index entry).
+
+This per-model/per-epoch resumability is *always* active, model by model, regardless of how
+you invoke `experiment.py` -- a plain re-run of the same command already skips whatever's
+already checkpointed. What `--resume` adds on top is resuming *the run itself*: a plain
+re-run always mints a brand-new `<timestamp>/` directory (with its own manifest/report/
+comparison plots, even if every model in it was 100% cached), which is right for "train some
+more under the same config" but wrong for "finish what this specific run didn't get to."
+`--resume <timestamp>` instead re-reads that run's own saved `config.json` (its exact
+`run_specs`, seed, epoch targets -- not whatever `experiment_config.json` or your CLI flags
+currently say) and calls `ExperimentRunner.run()` with that run's own `run_specs` and
+`timestamp`, so everything -- `config.json`, `manifest.json`, `report.txt`, the comparison
+plots -- gets finished in that same directory rather than forking a new one. There's no
+separate "replay from here" logic for this: whether that run never got past its first
+model's training, or finished training but crashed before plotting, or is already fully
+complete, re-entering `run()` naturally does only the work that's actually missing, because
+each model's own checkpoint resumability already handles every one of those cases -- a
+fully-trained model simply finds nothing left to train and falls straight through to that
+run's plot + report step.
+
+Interrupting a run (lost SLURM connection, ctrl-C, OOM) and running `--resume` picks up
+exactly where it left off -- training, plotting, or reporting, whichever was unfinished.
 
 The architecture hash itself never appears in directory or file names, since it isn't
 readable at a glance -- instead they use `arch_label` (e.g. `ft16_d3` for features=16,

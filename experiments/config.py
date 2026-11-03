@@ -74,10 +74,10 @@ class ExperimentConfig:
 		'output_root': 'experiment_output',
 	}
 
-	def __init__(self, values, report_timestamp=None, replot_timestamp=None):
+	def __init__(self, values, report_timestamp=None, resume_timestamp=None):
 		self.values = values
 		self.report_timestamp = report_timestamp
-		self.replot_timestamp = replot_timestamp
+		self.resume_timestamp = resume_timestamp
 
 	def __getattr__(self, name):
 		try:
@@ -134,7 +134,7 @@ class ExperimentConfig:
 		pre = argparse.ArgumentParser(add_help=False)
 		pre.add_argument('--config', default=None)
 		pre.add_argument('--report', nargs='?', const='latest', default=None)
-		pre.add_argument('--replot', nargs='?', const='latest', default=None)
+		pre.add_argument('--resume', nargs='?', const='latest', default=None)
 		known, _ = pre.parse_known_args(argv)
 
 		base = dict(cls.HARD_DEFAULTS)
@@ -148,7 +148,7 @@ class ExperimentConfig:
 		parser = argparse.ArgumentParser(description='run the full train/eval/compare pipeline for one or more models')
 		parser.add_argument('--config', default=None, help='JSON file of these same keys; explicit flags below still override it')
 		parser.add_argument('--report', nargs='?', const='latest', default=None, help='print a report instead of running (optionally a specific run timestamp)')
-		parser.add_argument('--replot', nargs='?', const='latest', default=None, help='regenerate comparison plots/report for a past run instead of running (optionally a specific run timestamp)')
+		parser.add_argument('--resume', nargs='?', const='latest', default=None, help='resume a past run (training/plotting/reporting, whichever is left) instead of starting a new one; bare flag = latest run, or pass a <timestamp>')
 		parser.add_argument('--models', nargs='+', choices=MODEL_REGISTRY.keys(), default=base['models'])
 		parser.add_argument('--features', type=int, nargs='+', default=base['features'], help='feature-count values to sweep, applied to every selected model (grid with --depths via make_channels)')
 		parser.add_argument('--depths', type=int, nargs='+', default=base['depths'], help='depth values to sweep, applied to every selected model (grid with --features via make_channels)')
@@ -175,4 +175,4 @@ class ExperimentConfig:
 			'output_root': args.output_root,
 		})
 
-		return cls(values, args.report, args.replot)
+		return cls(values, args.report, args.resume)

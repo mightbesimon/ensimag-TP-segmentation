@@ -41,7 +41,7 @@ class CheckpointManager:
 		return checkpoints[-1] if checkpoints else None
 
 	def find_at_or_before(self, model_hash, seed, epoch):
-		# for replotting a past run as it actually was: that run may not be
+		# for reporting on a past run as it actually was: that run may not be
 		# the one that trained the latest checkpoint for this hash, so
 		# "latest overall" is wrong -- this is "latest as of that run"
 		candidates = [c for c in self.list_checkpoints(model_hash, seed) if c['epoch'] <= epoch]

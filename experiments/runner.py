@@ -163,9 +163,17 @@ class ExperimentRunner:
 			step()
 		plots.video_comparison(all_results, device, loss_fn)
 
-	def run(self):
+	def run(self, run_specs=None, timestamp=None):
+		# run_specs/timestamp are only passed by Resumer: reusing the exact
+		# specs and directory of a past (possibly interrupted, possibly
+		# already-complete) run, instead of this run's own freshly-expanded
+		# specs and a new timestamp, is the entire resume mechanism -- every
+		# model below already resumes at the checkpoint/epoch level on its
+		# own, so replaying the same pipeline into the same directory just
+		# does the right amount of work whether 0%, 50%, or 100% done
 		target_epochs = self.cfg.target_epochs()
-		run_specs = self.cfg.run_specs()
+		if run_specs is None:
+			run_specs = self.cfg.run_specs()
 
 		Log.info(f'config: {json.dumps(self.cfg.to_dict())}')
 		Log.info(f'target epochs: {target_epochs} (seed {self.cfg.seed})')
@@ -177,7 +185,8 @@ class ExperimentRunner:
 		loss_fn = BCEWithLogitsLoss()
 		grid_plotter = PredictGridPlotter(self.device, loss_fn)
 
-		timestamp = datetime.now().strftime(TIMESTAMP_FORMAT)
+		if timestamp is None:
+			timestamp = datetime.now().strftime(TIMESTAMP_FORMAT)
 		run_dir = os.path.join(self.out_root, timestamp)
 		os.makedirs(run_dir, exist_ok=True)
 		config_to_save = self.cfg.to_dict()
