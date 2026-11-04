@@ -1,10 +1,13 @@
-# Working with this user
+# Working with this user #
 
 General preferences on how to code and collaborate, independent of any particular
 project or task.
 
-## Code style
+## Code style ##
 
+- **Tabs, not spaces, for indentation.**
+- **Single quotes for strings, not double** — except where the language/format requires
+  double (e.g. JSON) or the string itself contains a single quote.
 - **DRY, always.** Never hardcode a value that already exists as a single source of
   truth elsewhere (a class default, a config key, a constant). If the value needs to be
   derived, derive it (e.g. `inspect.signature` off the real default) rather than keeping
@@ -49,16 +52,19 @@ project or task.
   `color:`, OpenCV's `COLOR_BGR2RGB`). Leave those untouched; rename everything else,
   including values passed to them by a locally-defined parameter of the same name.
 
-## Working habits
+## Working habits ##
 
 - **Never touch the real/global environment to test something** — no installing
   packages into the system or user Python, no modifying machine-wide state, especially
   when the actual target runtime is a remote system (e.g. a cluster) that the local
   machine isn't representative of anyway. Use a syntax-only check, an isolated venv, or
   ask first if real execution is actually needed.
-- **If a mistake does touch the environment, clean it up with verifiable evidence**, not
-  just a claim — cross-check with more than one independent method (e.g. the package
-  manager's own record *and* a filesystem timestamp scan), and show the evidence.
+- **Back claims with actual evidence, not a confident summary.** When verifying anything
+  (a fix, a cleanup, "nothing else was affected"), show the real check — command output, a
+  diff, a scan — rather than asserting the conclusion. If one method could plausibly miss
+  something, cross-check with a second, independent method rather than reporting the first
+  result as final. This matters most right after a mistake, where a plausible-sounding but
+  unverified "it's fixed now" is exactly what loses trust.
 - **Always re-read current on-disk state before editing** — don't trust memory of a
   prior turn's edits. Files get hand-edited or committed between turns.
 - **Fix the root cause, not the symptom** — when something misbehaves, trace the actual
@@ -72,7 +78,7 @@ project or task.
   decision with more than one reasonable answer (not a technical question you could
   figure out yourself by reading code).
 
-## Communication
+## Communication ##
 
 - Be direct and terse. No padding, no restating the request back, no over-apologizing.
 - When something went wrong, lead with a clear technical explanation of what was
