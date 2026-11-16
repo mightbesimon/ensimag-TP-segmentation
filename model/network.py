@@ -19,7 +19,15 @@ class Block(Module):
 
     def forward(self, x):
         # apply CONV => RELU => CONV block to the inputs and return it
-        return self.conv2(self.relu(self.conv1(x)))
+        # return self.conv2(self.relu(self.conv1(x)))
+        return self.relu(self.conv2(self.relu(self.conv1(x))))
+
+
+def make_blocks(channels, block_func=lambda i, ch: Block(ch[i], ch[i+1])):
+    return ModuleList([
+        block_func(i, channels)
+        for i in range(len(channels) - 1)
+    ])
 
 
 class SimpleConv(Module):
@@ -27,17 +35,15 @@ class SimpleConv(Module):
                  dec_channels=(64, 32, 16, 1)):
         super().__init__()
 
-        # store the encoder blocks and maxpooling layer
-        self.enc_blocks = ModuleList([Block(enc_channels[i], enc_channels[i+1])
-                                     for i in range(len(enc_channels) - 1)])
-        # TODO: prepare pooling
-
-        # initialize decoder # channels, upsampler blocks, and decoder blocks
+        self.enc_channels = enc_channels
         self.channels = dec_channels
-        self.dec_blocks = ModuleList(
-            [Block(dec_channels[i], dec_channels[i + 1])
-             for i in range(len(dec_channels) - 1)])
-        # TODO: prepare upconvolutions
+        block_channels = dec_channels[:-1] + (dec_channels[-2] // 2,)
+
+        self.enc_blocks = make_blocks(enc_channels)
+        self.dec_blocks = make_blocks(block_channels)
+
+        # final 1x1 conv mapping decoder features to the segmentation mask
+        self.head = Conv2d(block_channels[-1], dec_channels[-1], 1)
 
     def forward(self, x):
         # loop through the encoder blocks
@@ -52,16 +58,9 @@ class SimpleConv(Module):
             # pass the inputs through the upsampler blocks
             # TODO: upconvolutions
             x = self.dec_blocks[i](x)
-        #
+
         # return the final decoder output
-        return x
-
-
-def make_blocks(channels, block_func=lambda i, ch: Block(ch[i], ch[i+1])):
-    return ModuleList([
-        block_func(i, channels)
-        for i in range(len(channels) - 1)
-    ])
+        return self.head(x)
 
 
 class HourGlass(Module):
